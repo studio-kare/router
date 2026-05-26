@@ -586,23 +586,79 @@ export function injectStyles() {
     font-size: 18px;
     font-weight: 600;
     color: #111827;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     margin-top: 0;
   }
 
-  .try-it-description {
-    font-size: 14px;
-    color: #6b7280;
-    margin-bottom: 16px;
-    line-height: 1.6;
+  .privacy-selector {
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 6px;
   }
 
-  .try-it-description code {
-    background: #f3f4f6;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-family: monospace;
+  .selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .selector-header label {
+    font-size: 13px;
+    font-weight: 600;
     color: #111827;
+  }
+
+  .adapter-badge {
+    padding: 4px 8px;
+    background: #3b82f6;
+    color: white;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .privacy-slider-input {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e5e7eb;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    margin-bottom: 8px;
+  }
+
+  .privacy-slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .privacy-slider-input::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .privacy-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #6b7280;
+    padding-top: 4px;
+    border-top: 1px solid #e5e7eb;
   }
 
   .curl-container {

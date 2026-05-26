@@ -5,6 +5,7 @@ export function Placeholder() {
   const [loading, setLoading] = useState(true)
   const [apiKey, setApiKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [privacy, setPrivacy] = useState(0.8)
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -45,20 +46,26 @@ export function Placeholder() {
     fetchApiKey()
   }, [])
 
-  const curlCommand = apiKey
+  const getAdapter = (p: number) => {
+    if (p >= 0.85) return "anthropic"
+    if (p >= 0.5) return "openai"
+    return "openrouter"
+  }
+
+  const curlWithPrivacy = apiKey
     ? `curl -X POST http://localhost:3000/v1/chat/completions \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "claude-3-5-sonnet-20241022",
-    "privacy": 0.9,
+    "privacy": ${privacy},
     "messages": [{"role": "user", "content": "Hello, world!"}]
   }'`
     : null
 
   const copyCurl = async () => {
-    if (curlCommand) {
-      await navigator.clipboard.writeText(curlCommand)
+    if (curlWithPrivacy) {
+      await navigator.clipboard.writeText(curlWithPrivacy)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -80,17 +87,34 @@ export function Placeholder() {
         dangerouslySetInnerHTML={{ __html: html || "<h1>Farmer</h1><p>Try it now</p>" }}
       />
 
-      {curlCommand && (
+      {curlWithPrivacy && (
         <div className="try-it-section">
           <h2>Try it Now</h2>
-          <p className="try-it-description">
-            Copy and paste this curl command to test the API. The <code>privacy</code> parameter controls routing:
-            <br />
-            <strong>≥ 0.85</strong> = Anthropic (highest quality) •{" "}
-            <strong>≥ 0.5</strong> = OpenAI (balanced) • <strong>&lt; 0.5</strong> = OpenRouter (cheapest)
-          </p>
+
+          <div className="privacy-selector">
+            <div className="selector-header">
+              <label htmlFor="privacy-slider">Privacy Level: {(privacy * 100).toFixed(0)}%</label>
+              <span className="adapter-badge">{getAdapter(privacy)}</span>
+            </div>
+            <input
+              id="privacy-slider"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={privacy}
+              onChange={(e) => setPrivacy(parseFloat(e.target.value))}
+              className="privacy-slider-input"
+            />
+            <div className="privacy-legend">
+              <span>0% (OpenRouter)</span>
+              <span>50% (OpenAI)</span>
+              <span>100% (Anthropic)</span>
+            </div>
+          </div>
+
           <div className="curl-container">
-            <pre className="curl-command">{curlCommand}</pre>
+            <pre className="curl-command">{curlWithPrivacy}</pre>
             <button className="copy-curl-btn" onClick={copyCurl}>
               {copied ? "Copied!" : "Copy"}
             </button>
