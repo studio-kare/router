@@ -555,16 +555,82 @@ export function injectStyles() {
 
   .placeholder {
     text-align: center;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    overflow-y: auto;
   }
 
-  .placeholder h1 {
+  .placeholder-content h1 {
     font-size: 32px;
     margin-bottom: 12px;
     color: #111827;
   }
 
-  .placeholder p {
+  .placeholder-content p {
     color: #6b7280;
+    margin-bottom: 40px;
+  }
+
+  .try-it-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: left;
+    margin-top: 32px;
+  }
+
+  .try-it-section h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 12px;
+    margin-top: 0;
+  }
+
+  .try-it-description {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 16px;
+  }
+
+  .curl-container {
+    background: #1f2937;
+    border-radius: 6px;
+    padding: 16px;
+    position: relative;
+    font-family: monospace;
+  }
+
+  .curl-command {
+    color: #e5e7eb;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: monospace;
+  }
+
+  .copy-curl-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 6px 12px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .copy-curl-btn:hover {
+    background: #2563eb;
   }
 
   .usage-ledger {
