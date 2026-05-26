@@ -119,19 +119,22 @@ export const handleChatCompletions = (
 // ManagedRuntime builds the layer once at server start and reuses services across
 // requests — no layer traversal per request.
 
+import indexHtml from "../index.html"
+
 export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
   const runtime = ManagedRuntime.make(adapters)
-  const indexHtmlFile = Bun.file(new URL("../index.html", import.meta.url))
 
   return Bun.serve({
     port,
+    routes: {
+      "/": indexHtml,
+    },
+    development: {
+      hmr: true,
+      console: true,
+    },
     fetch(req) {
       const url = new URL(req.url)
-      if (req.method === "GET" && url.pathname === "/") {
-        return new Response(indexHtmlFile, {
-          headers: { "Content-Type": "text/html" },
-        })
-      }
       if (req.method === "GET" && url.pathname === "/health") {
         return new Response(JSON.stringify({ status: "ok" }), {
           headers: { "Content-Type": "application/json" },
