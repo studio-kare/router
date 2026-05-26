@@ -1,0 +1,17 @@
+{
+  "name": "farmer",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "effect": "^4.0.0-beta.70",
+    "openai": "^6.39.0"
+  }
+}
