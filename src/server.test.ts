@@ -4,17 +4,35 @@ import { AnthropicAdapterTest } from "./adapters/anthropic.test-layer"
 import { OpenAIAdapterTest } from "./adapters/openai.test-layer"
 import { OpenRouterAdapterTest } from "./adapters/openrouter.test-layer"
 import { handleChatCompletions } from "./server"
+import { KeyServiceTest } from "./keys.test-layer"
 
 const testAdapters = Layer.mergeAll(
+  KeyServiceTest,
   AnthropicAdapterTest("anthropic response"),
   OpenAIAdapterTest("openai response"),
   OpenRouterAdapterTest("openrouter response")
 )
 
+const VALID_TEST_KEY = "sk_test_key_valid_12345678901234"
+
 const makeRequest = (model: string, privacy?: number) =>
   new Request("http://localhost/v1/chat/completions", {
     method: "POST",
+    headers: {
+      "Authorization": `Bearer ${VALID_TEST_KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ model, messages: [{ role: "user", content: "hi" }], privacy }),
+  })
+
+const makeBadRequest = (body: any) =>
+  new Request("http://localhost/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${VALID_TEST_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   })
 
 const collectSSE = async (response: Response): Promise<string> => {
@@ -58,10 +76,7 @@ test("response is SSE with correct content-type", async () => {
 })
 
 test("rejects request with missing model field", async () => {
-  const badRequest = new Request("http://localhost/v1/chat/completions", {
-    method: "POST",
-    body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
-  })
+  const badRequest = makeBadRequest({ messages: [{ role: "user", content: "hi" }] })
   const response = await Effect.runPromise(
     handleChatCompletions(badRequest).pipe(Effect.provide(testAdapters))
   )
@@ -71,10 +86,7 @@ test("rejects request with missing model field", async () => {
 })
 
 test("rejects request with empty messages array", async () => {
-  const badRequest = new Request("http://localhost/v1/chat/completions", {
-    method: "POST",
-    body: JSON.stringify({ model: "gpt-4o", messages: [] }),
-  })
+  const badRequest = makeBadRequest({ model: "gpt-4o", messages: [] })
   const response = await Effect.runPromise(
     handleChatCompletions(badRequest).pipe(Effect.provide(testAdapters))
   )
@@ -84,10 +96,7 @@ test("rejects request with empty messages array", async () => {
 })
 
 test("rejects request with malformed message object", async () => {
-  const badRequest = new Request("http://localhost/v1/chat/completions", {
-    method: "POST",
-    body: JSON.stringify({ model: "gpt-4o", messages: [{ role: "user" }] }),
-  })
+  const badRequest = makeBadRequest({ model: "gpt-4o", messages: [{ role: "user" }] })
   const response = await Effect.runPromise(
     handleChatCompletions(badRequest).pipe(Effect.provide(testAdapters))
   )
