@@ -65,6 +65,12 @@ export function injectStyles() {
     margin: 16px 0;
   }
 
+  .divider-horizontal {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 12px 0;
+  }
+
   .deployment-badge {
     border-left: 4px solid #3b82f6;
     padding: 12px;
@@ -559,6 +565,126 @@ export function injectStyles() {
 
   .placeholder p {
     color: #6b7280;
+  }
+
+  .usage-ledger {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .ledger-header {
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .ledger-header h3 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111827;
+    text-transform: uppercase;
+  }
+
+  .ledger-empty {
+    font-size: 11px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 4px;
+  }
+
+  .ledger-loading {
+    font-size: 11px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 12px;
+  }
+
+  .ledger-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    background: #f0f9ff;
+    border-radius: 4px;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+  }
+
+  .summary-label {
+    color: #6b7280;
+    font-weight: 600;
+  }
+
+  .summary-value {
+    color: #111827;
+    font-weight: 600;
+    font-family: monospace;
+  }
+
+  .ledger-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .ledger-entry {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 8px;
+    background: #f9fafb;
+    font-size: 10px;
+  }
+
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .entry-time {
+    color: #6b7280;
+    font-weight: 600;
+  }
+
+  .entry-cost {
+    color: #059669;
+    font-weight: 600;
+    font-family: monospace;
+  }
+
+  .entry-details {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+    margin-bottom: 2px;
+  }
+
+  .entry-label {
+    color: #6b7280;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .entry-value {
+    color: #111827;
+    font-family: monospace;
+    text-align: right;
+    flex: 1;
+    word-break: break-all;
   }
 `
   document.head.appendChild(style)

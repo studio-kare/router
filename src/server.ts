@@ -10,6 +10,7 @@ import { privacyToStrategy } from "./privacy"
 import { Deployment } from "./deployments"
 import { KeyService } from "./keys"
 import { RateLimiter } from "./rate-limit"
+import { LedgerService } from "./ledger"
 import { getPlaceholderHtml } from "./placeholder"
 import type { InfraAdapter } from "./infra-adapters/base"
 
@@ -77,6 +78,7 @@ export type AdapterEnv =
   | Deployment
   | KeyService
   | RateLimiter
+  | LedgerService
 
 export const handleChatCompletions = (
   req: Request
@@ -386,6 +388,18 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
             const rateLimiter = yield* RateLimiter
             const quota = yield* rateLimiter.getQuota(apiKey)
             return new Response(JSON.stringify(quota), {
+              headers: { "Content-Type": "application/json" },
+            })
+          })
+        )
+      }
+      if (req.method === "GET" && url.pathname.match(/^\/v1\/keys\/[^/]+\/ledger$/)) {
+        const keyId = url.pathname.split("/")[3]
+        return runtime.runPromise(
+          Effect.gen(function*() {
+            const ledger = yield* LedgerService
+            const entries = yield* ledger.getKeyLedger(keyId)
+            return new Response(JSON.stringify(entries), {
               headers: { "Content-Type": "application/json" },
             })
           })

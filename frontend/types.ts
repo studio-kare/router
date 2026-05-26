@@ -23,3 +23,13 @@ export interface ApiKeyInfo {
   lastUsed: number | null
   revokedAt: number | null
 }
+
+export interface UsageLedgerEntry {
+  id: string
+  timestamp: number
+  inputTokens: number
+  outputTokens: number
+  model: string
+  adapter: "anthropic" | "openai" | "openrouter"
+  costUsd: number
+}

@@ -5,6 +5,7 @@ import { OpenRouterAdapterLive } from "./src/adapters/openrouter"
 import { DeploymentFromEnv } from "./src/deployments"
 import { KeyServiceLive } from "./src/keys"
 import { RateLimiterLive } from "./src/rate-limit"
+import { LedgerServiceLive } from "./src/ledger"
 import { startServer } from "./src/server"
 import { createValTownAdapter } from "./src/infra-adapters/val-town"
 
@@ -24,6 +25,7 @@ const adapters = Layer.mergeAll(
   DeploymentFromEnv,
   KeyServiceLive,
   RateLimiterLive,
+  LedgerServiceLive,
   AnthropicAdapterLive(process.env.ANTHROPIC_API_KEY ?? ""),
   OpenAIAdapterLive(process.env.OPENAI_API_KEY ?? ""),
   OpenRouterAdapterLive(process.env.OPENROUTER_API_KEY ?? ""),

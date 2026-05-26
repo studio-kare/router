@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import type { ApiKeyInfo } from "../types"
 import { DeploymentSidebar } from "./DeploymentSidebar"
 import { Placeholder } from "./Placeholder"
+import { UsageLedger } from "./UsageLedger"
 
 export function App() {
   const [selectedKey, setSelectedKey] = useState<ApiKeyInfo | null>(null)
@@ -53,6 +54,10 @@ export function App() {
               </div>
             )}
           </div>
+
+          <div className="divider-horizontal" />
+
+          <UsageLedger keyId={selectedKey.id} />
         </aside>
       ) : (
         <main className="main-content">
