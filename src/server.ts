@@ -9,6 +9,7 @@ import { logInfo, logError } from "./logging"
 import { privacyToStrategy } from "./privacy"
 import { Deployment } from "./deployment"
 import { KeyService } from "./keys"
+import { RateLimiter } from "./rate-limit"
 
 // --- SSE helpers ---
 
@@ -49,7 +50,7 @@ const selectAndStream = (params: StreamChatParams, strategy: ReturnType<typeof p
 
 // --- Handler (requires all three adapters in context) ---
 
-export type AdapterEnv = OpenRouterAdapter | OpenAIAdapter | AnthropicAdapter | Deployment | KeyService
+export type AdapterEnv = OpenRouterAdapter | OpenAIAdapter | AnthropicAdapter | Deployment | KeyService | RateLimiter
 
 export const handleChatCompletions = (
   req: Request
@@ -72,6 +73,36 @@ export const handleChatCompletions = (
       return new Response(
         JSON.stringify({ error: "Invalid API key" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    // Check rate limits
+    const rateLimiter = yield* RateLimiter
+    const fairnessOk = yield* rateLimiter.checkFairness(apiKey)
+    const abuseOk = yield* rateLimiter.checkAbuse(apiKey)
+
+    if (!fairnessOk || !abuseOk) {
+      const quota = yield* rateLimiter.getQuota(apiKey)
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-RateLimit-Panic": quota.panic ? "true" : "false",
+        "X-RateLimit-Fairness-Remaining": String(quota.fairness.remaining),
+        "X-RateLimit-Fairness-Reset": String(quota.fairness.resetAt),
+        "X-RateLimit-Budget-Used": String(quota.budget.used),
+        "X-RateLimit-Budget-Remaining": String(quota.budget.remaining),
+        "X-RateLimit-Budget-Reset": String(quota.budget.resetAt),
+      }
+      if (quota.abuse.blockedUntil) {
+        const retryAfter = Math.ceil((quota.abuse.blockedUntil - Date.now()) / 1000)
+        headers["Retry-After"] = String(retryAfter)
+      }
+
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded",
+          quota,
+        }),
+        { status: 429, headers }
       )
     }
 
@@ -269,6 +300,25 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
             { status: 400, headers: { "Content-Type": "application/json" } }
           )
         }
+      }
+      if (req.method === "GET" && url.pathname === "/v1/quota") {
+        const authHeader = req.headers.get("authorization")
+        if (!authHeader?.startsWith("Bearer ")) {
+          return new Response(
+            JSON.stringify({ error: "Missing or invalid authorization header" }),
+            { status: 401, headers: { "Content-Type": "application/json" } }
+          )
+        }
+        const apiKey = authHeader.slice(7)
+        return runtime.runPromise(
+          Effect.gen(function* () {
+            const rateLimiter = yield* RateLimiter
+            const quota = yield* rateLimiter.getQuota(apiKey)
+            return new Response(JSON.stringify(quota), {
+              headers: { "Content-Type": "application/json" },
+            })
+          })
+        )
       }
       return new Response("Not found", { status: 404 })
     },
