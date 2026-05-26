@@ -5,6 +5,7 @@ import { OpenAIAdapterLive } from "./adapters/openai"
 import { OpenRouterAdapterLive } from "./adapters/openrouter"
 import { DevelopmentLive } from "./deployment"
 import { KeyServiceLive } from "./keys"
+import { RateLimiterLive } from "./rate-limit"
 import { startServer } from "./server"
 
 let baseUrl: string
@@ -14,6 +15,7 @@ beforeAll(() => {
   const adapters = Layer.mergeAll(
     DevelopmentLive,
     KeyServiceLive,
+    RateLimiterLive,
     AnthropicAdapterLive(process.env.ANTHROPIC_API_KEY ?? ""),
     OpenAIAdapterLive(process.env.OPENAI_API_KEY ?? ""),
     OpenRouterAdapterLive(process.env.OPENROUTER_API_KEY ?? "")

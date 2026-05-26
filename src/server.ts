@@ -1,4 +1,4 @@
-import { Effect, Layer, ManagedRuntime, Stream } from "effect"
+import { Effect, Layer, ManagedRuntime, Stream, Context } from "effect"
 import { AnthropicAdapter } from "./adapters/anthropic"
 import { OpenAIAdapter } from "./adapters/openai"
 import { OpenRouterAdapter } from "./adapters/openrouter"
@@ -7,9 +7,16 @@ import { ValidationError } from "./types"
 import { validateStreamChatParams } from "./validation"
 import { logInfo, logError } from "./logging"
 import { privacyToStrategy } from "./privacy"
-import { Deployment } from "./deployment"
+import { Deployment } from "./deployments"
 import { KeyService } from "./keys"
 import { RateLimiter } from "./rate-limit"
+import { getPlaceholderHtml } from "./placeholder"
+import type { InfraAdapter } from "./infra-adapters/base"
+
+// Val.town adapter service (from index.ts)
+class ValTownAdapterService extends Context.Service<ValTownAdapterService, InfraAdapter>()(
+  "ValTownAdapterService"
+) { }
 
 // --- SSE helpers ---
 
@@ -26,23 +33,35 @@ const sseChunk = (text: string, model: string): string =>
 
 const sseDone = "data: [DONE]\n\n"
 
-// --- Adapter selection (by privacy strategy, not model) ---
+// --- Adapter selection ---
 
-const selectAndStream = (params: StreamChatParams, strategy: ReturnType<typeof privacyToStrategy>) => {
-  // Privacy level determines which adapter to use
+const selectAndStream = (
+  params: StreamChatParams,
+  strategy: ReturnType<typeof privacyToStrategy>,
+  useValTown: boolean
+) => {
+  // Production: route through Val.town
+  if (useValTown) {
+    return Effect.gen(function*() {
+      const adapter = yield* ValTownAdapterService
+      return yield* adapter.streamChat(params)
+    })
+  }
+
+  // Development: use privacy-based strategy
   if (strategy.adapter === "anthropic") {
-    return Effect.gen(function* () {
+    return Effect.gen(function*() {
       const adapter = yield* AnthropicAdapter
       return yield* adapter.streamChat(params)
     })
   }
   if (strategy.adapter === "openai") {
-    return Effect.gen(function* () {
+    return Effect.gen(function*() {
       const adapter = yield* OpenAIAdapter
       return yield* adapter.streamChat(params)
     })
   }
-  return Effect.gen(function* () {
+  return Effect.gen(function*() {
     const adapter = yield* OpenRouterAdapter
     return yield* adapter.streamChat(params)
   })
@@ -50,12 +69,19 @@ const selectAndStream = (params: StreamChatParams, strategy: ReturnType<typeof p
 
 // --- Handler (requires all three adapters in context) ---
 
-export type AdapterEnv = OpenRouterAdapter | OpenAIAdapter | AnthropicAdapter | Deployment | KeyService | RateLimiter
+export type AdapterEnv =
+  | OpenRouterAdapter
+  | OpenAIAdapter
+  | AnthropicAdapter
+  | ValTownAdapterService
+  | Deployment
+  | KeyService
+  | RateLimiter
 
 export const handleChatCompletions = (
   req: Request
 ): Effect.Effect<Response, never, AdapterEnv> =>
-  Effect.gen(function* () {
+  Effect.gen(function*() {
     // Validate API key
     const authHeader = req.headers.get("authorization")
     if (!authHeader?.startsWith("Bearer ")) {
@@ -117,19 +143,34 @@ export const handleChatCompletions = (
     const params = yield* validateStreamChatParams(body)
     const strategy = privacyToStrategy(params.privacy)
 
-    const chunkStream = yield* selectAndStream(params, strategy)
+    // Check if we should route through Val.town (production deployment)
+    const deployment = yield* Deployment
+    const useValTown = deployment.name === "production"
+
+    const chunkStream = yield* selectAndStream(params, strategy, useValTown)
 
     const responseBody = new ReadableStream({
       async start(controller) {
         try {
+          let totalTokens = 0
           await Effect.runPromise(
             Stream.runForEach(chunkStream, (chunk) => {
               if (chunk.text) {
                 controller.enqueue(encoder.encode(sseChunk(chunk.text, params.model)))
               }
+              // Track tokens from the final chunk with usage info
+              if (chunk.done && chunk.usage) {
+                totalTokens = chunk.usage.inputTokens + chunk.usage.outputTokens
+              }
               return Effect.void
             })
           )
+
+          // Record total tokens used for this request
+          if (totalTokens > 0) {
+            await Effect.runPromise(rateLimiter.recordTokens(apiKey, totalTokens))
+          }
+
           controller.enqueue(encoder.encode(sseDone))
           controller.close()
         } catch (e) {
@@ -197,10 +238,29 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "GET" && url.pathname === "/v1/deployment") {
         return runtime.runPromise(
-          Effect.gen(function* () {
+          Effect.gen(function*() {
             const deployment = yield* Deployment
-            return new Response(JSON.stringify(deployment), {
+            const response = {
+              name: deployment.name,
+              apiUrl: `http://localhost:${port}`,
+              features: {
+                experimentalAdapters: deployment.name === "production",
+                privacyModes: true,
+              },
+            }
+            return new Response(JSON.stringify(response), {
               headers: { "Content-Type": "application/json" },
+            })
+          })
+        )
+      }
+      if (req.method === "GET" && url.pathname === "/v1/placeholder") {
+        return runtime.runPromise(
+          Effect.gen(function*() {
+            const deployment = yield* Deployment
+            const html = getPlaceholderHtml(deployment.name)
+            return new Response(html, {
+              headers: { "Content-Type": "text/html" },
             })
           })
         )
@@ -247,7 +307,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/generate") {
         return runtime.runPromise(
-          Effect.gen(function* () {
+          Effect.gen(function*() {
             const keyService = yield* KeyService
             const newKey = yield* keyService.generateKey()
             return new Response(JSON.stringify(newKey), {
@@ -259,7 +319,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") {
         return runtime.runPromise(
-          Effect.gen(function* () {
+          Effect.gen(function*() {
             const keyService = yield* KeyService
             const keys = yield* keyService.listKeys()
             // Don't expose full keys to the client, only show masked versions
@@ -286,7 +346,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
             )
           }
           return runtime.runPromise(
-            Effect.gen(function* () {
+            Effect.gen(function*() {
               const keyService = yield* KeyService
               yield* keyService.revokeKey(body.key)
               return new Response(JSON.stringify({ ok: true }), {
@@ -301,6 +361,17 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
           )
         }
       }
+      if (req.method === "POST" && url.pathname === "/v1/keys/clear") {
+        return runtime.runPromise(
+          Effect.gen(function*() {
+            const keyService = yield* KeyService
+            yield* keyService.clearAllKeys()
+            return new Response(JSON.stringify({ ok: true }), {
+              headers: { "Content-Type": "application/json" },
+            })
+          })
+        )
+      }
       if (req.method === "GET" && url.pathname === "/v1/quota") {
         const authHeader = req.headers.get("authorization")
         if (!authHeader?.startsWith("Bearer ")) {
@@ -311,7 +382,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         }
         const apiKey = authHeader.slice(7)
         return runtime.runPromise(
-          Effect.gen(function* () {
+          Effect.gen(function*() {
             const rateLimiter = yield* RateLimiter
             const quota = yield* rateLimiter.getQuota(apiKey)
             return new Response(JSON.stringify(quota), {

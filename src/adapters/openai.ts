@@ -61,16 +61,32 @@ export const OpenAIAdapterLive = (apiKey: string) =>
           }),
         catch: mapError,
       }).pipe(
-        Effect.map((iterable) =>
-          Stream.fromAsyncIterable(iterable, (e) =>
+        Effect.map((iterable) => {
+          let outputText = ""
+          return Stream.fromAsyncIterable(iterable, (e) =>
             new OpenAIUpstreamError({ status: 0, message: String(e) })
           ).pipe(
-            Stream.map((chunk) => ({
-              text: chunk.choices[0]?.delta?.content ?? "",
-              done: chunk.choices[0]?.finish_reason != null,
-            }))
+            Stream.map((chunk) => {
+              const text = chunk.choices[0]?.delta?.content ?? ""
+              outputText += text
+              const isDone = chunk.choices[0]?.finish_reason != null
+
+              // Estimate tokens (rough heuristic: ~4 chars = 1 token)
+              const usage = isDone
+                ? {
+                    inputTokens: Math.ceil(params.messages.reduce((acc, m) => acc + String(m.content).length, 0) / 4),
+                    outputTokens: Math.ceil(outputText.length / 4),
+                  }
+                : undefined
+
+              return {
+                text,
+                done: isDone,
+                usage,
+              }
+            })
           )
-        )
+        })
       )
     },
   })

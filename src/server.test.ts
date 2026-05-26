@@ -5,9 +5,11 @@ import { OpenAIAdapterTest } from "./adapters/openai.test-layer"
 import { OpenRouterAdapterTest } from "./adapters/openrouter.test-layer"
 import { handleChatCompletions } from "./server"
 import { KeyServiceTest } from "./keys.test-layer"
+import { RateLimiterTest } from "./rate-limit.test-layer"
 
 const testAdapters = Layer.mergeAll(
   KeyServiceTest,
+  RateLimiterTest,
   AnthropicAdapterTest("anthropic response"),
   OpenAIAdapterTest("openai response"),
   OpenRouterAdapterTest("openrouter response")

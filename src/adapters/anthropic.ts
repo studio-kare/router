@@ -85,12 +85,20 @@ export const AnthropicAdapterLive = (apiKey: string) =>
           })
 
           const chunks: StreamChunk[] = []
+          let usage: { inputTokens: number; outputTokens: number } | undefined
+
           for await (const event of stream) {
+            if (event.type === "message_start" && event.message.usage) {
+              usage = {
+                inputTokens: event.message.usage.input_tokens,
+                outputTokens: event.message.usage.output_tokens,
+              }
+            }
             if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
               chunks.push({ text: event.delta.text, done: false })
             }
             if (event.type === "message_stop") {
-              chunks.push({ text: "", done: true })
+              chunks.push({ text: "", done: true, usage })
             }
           }
           return chunks

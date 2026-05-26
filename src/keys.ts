@@ -17,11 +17,12 @@ export class KeyService extends Context.Service<
     readonly listKeys: () => Effect.Effect<ApiKey[]>
     readonly revokeKey: (key: string) => Effect.Effect<void>
     readonly recordUsage: (key: string) => Effect.Effect<void>
+    readonly clearAllKeys: () => Effect.Effect<void>
   }
 >()("KeyService") {}
 
 export const KeyServiceLive = (() => {
-  const db = new Database(":memory:")
+  const db = new Database("./farmer.db")
 
   // Initialize table
   db.exec(`
@@ -88,6 +89,11 @@ export const KeyServiceLive = (() => {
     recordUsage: (key: string) =>
       Effect.sync(() => {
         db.prepare("UPDATE api_keys SET lastUsed = ? WHERE key = ?").run(Date.now(), key)
+      }),
+
+    clearAllKeys: () =>
+      Effect.sync(() => {
+        db.prepare("UPDATE api_keys SET revokedAt = ? WHERE revokedAt IS NULL").run(Date.now())
       }),
   })
 })()

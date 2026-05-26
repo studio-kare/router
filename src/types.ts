@@ -11,6 +11,10 @@ export interface StreamChatParams {
 export interface StreamChunk {
   readonly text: string
   readonly done: boolean
+  readonly usage?: {
+    readonly inputTokens: number
+    readonly outputTokens: number
+  }
 }
 
 // Validation errors
