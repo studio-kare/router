@@ -7,6 +7,7 @@ import { ValidationError } from "./types"
 import { validateStreamChatParams } from "./validation"
 import { logInfo, logError } from "./logging"
 import { privacyToStrategy } from "./privacy"
+import { Deployment } from "./deployment"
 
 // --- SSE helpers ---
 
@@ -47,7 +48,7 @@ const selectAndStream = (params: StreamChatParams, strategy: ReturnType<typeof p
 
 // --- Handler (requires all three adapters in context) ---
 
-export type AdapterEnv = OpenRouterAdapter | OpenAIAdapter | AnthropicAdapter
+export type AdapterEnv = OpenRouterAdapter | OpenAIAdapter | AnthropicAdapter | Deployment
 
 export const handleChatCompletions = (
   req: Request
@@ -129,6 +130,16 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         return new Response(JSON.stringify({ status: "ok" }), {
           headers: { "Content-Type": "application/json" },
         })
+      }
+      if (req.method === "GET" && url.pathname === "/v1/deployment") {
+        return runtime.runPromise(
+          Effect.gen(function* () {
+            const deployment = yield* Deployment
+            return new Response(JSON.stringify(deployment), {
+              headers: { "Content-Type": "application/json" },
+            })
+          })
+        )
       }
       if (req.method === "GET" && url.pathname === "/v1/privacy/info") {
         const privacyParam = url.searchParams.get("privacy")
