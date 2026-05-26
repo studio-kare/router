@@ -10,6 +10,107 @@ interface DeploymentInfo {
   }
 }
 
+interface PrivacyInfo {
+  privacy: number
+  routing: {
+    anthropic: { probability: number; costMultiplier: number }
+    openai: { probability: number; costMultiplier: number }
+    openrouter: { probability: number; costMultiplier: number }
+  }
+}
+
+function PrivacySlider() {
+  const [privacy, setPrivacy] = useState(0.8)
+  const [privacyInfo, setPrivacyInfo] = useState<PrivacyInfo | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const fetchPrivacy = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(`/v1/privacy/info?privacy=${privacy}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        setPrivacyInfo(data)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPrivacy()
+  }, [privacy])
+
+  const getPrivacyLabel = (value: number): string => {
+    if (value < 0.3) return "Public"
+    if (value < 0.6) return "Balanced"
+    if (value < 0.85) return "Private"
+    return "Maximum"
+  }
+
+  return (
+    <div className="privacy-section">
+      <div className="privacy-header">
+        <span className="privacy-label">Privacy Level</span>
+        <span className="privacy-value">{getPrivacyLabel(privacy)}</span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        value={privacy}
+        onChange={(e) => setPrivacy(parseFloat(e.target.value))}
+        className="privacy-slider"
+      />
+      <div className="privacy-percentage">{Math.round(privacy * 100)}%</div>
+
+      {loading && <div className="privacy-loading">Updating...</div>}
+
+      {privacyInfo && (
+        <div className="routing-info">
+          <div className="routing-header">Routing Probabilities</div>
+          <div className="adapter-row">
+            <span className="adapter-name">Anthropic</span>
+            <div className="probability-bar">
+              <div
+                className="probability-fill"
+                style={{ width: `${privacyInfo.routing.anthropic.probability * 100}%` }}
+              />
+            </div>
+            <span className="probability-text">
+              {Math.round(privacyInfo.routing.anthropic.probability * 100)}%
+            </span>
+          </div>
+          <div className="adapter-row">
+            <span className="adapter-name">OpenAI</span>
+            <div className="probability-bar">
+              <div
+                className="probability-fill"
+                style={{ width: `${privacyInfo.routing.openai.probability * 100}%` }}
+              />
+            </div>
+            <span className="probability-text">{Math.round(privacyInfo.routing.openai.probability * 100)}%</span>
+          </div>
+          <div className="adapter-row">
+            <span className="adapter-name">OpenRouter</span>
+            <div className="probability-bar">
+              <div
+                className="probability-fill"
+                style={{ width: `${privacyInfo.routing.openrouter.probability * 100}%` }}
+              />
+            </div>
+            <span className="probability-text">
+              {Math.round(privacyInfo.routing.openrouter.probability * 100)}%
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DeploymentSidebar() {
   const [deployment, setDeployment] = useState<DeploymentInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,26 +163,33 @@ function DeploymentSidebar() {
 
   return (
     <div className="sidebar">
-      <div className="sidebar-header">Deployment</div>
+      <div className="sidebar-header">Configuration</div>
       <div className="sidebar-content">
-        <div className="deployment-badge" style={{ borderLeftColor: deploymentColor }}>
-          <div className="deployment-name">{deployment.name}</div>
-          <div className="deployment-url">{deployment.apiUrl}</div>
-        </div>
-        <div className="features">
-          <div className="feature-item">
-            <span className="feature-label">Experimental Adapters</span>
-            <span className={`feature-value ${deployment.features.experimentalAdapters ? "on" : "off"}`}>
-              {deployment.features.experimentalAdapters ? "✓" : "✗"}
-            </span>
+        <div className="sidebar-section">
+          <div className="section-title">Deployment</div>
+          <div className="deployment-badge" style={{ borderLeftColor: deploymentColor }}>
+            <div className="deployment-name">{deployment.name}</div>
+            <div className="deployment-url">{deployment.apiUrl}</div>
           </div>
-          <div className="feature-item">
-            <span className="feature-label">Privacy Modes</span>
-            <span className={`feature-value ${deployment.features.privacyModes ? "on" : "off"}`}>
-              {deployment.features.privacyModes ? "✓" : "✗"}
-            </span>
+          <div className="features">
+            <div className="feature-item">
+              <span className="feature-label">Experimental Adapters</span>
+              <span className={`feature-value ${deployment.features.experimentalAdapters ? "on" : "off"}`}>
+                {deployment.features.experimentalAdapters ? "✓" : "✗"}
+              </span>
+            </div>
+            <div className="feature-item">
+              <span className="feature-label">Privacy Modes</span>
+              <span className={`feature-value ${deployment.features.privacyModes ? "on" : "off"}`}>
+                {deployment.features.privacyModes ? "✓" : "✗"}
+              </span>
+            </div>
           </div>
         </div>
+
+        <div className="divider" />
+
+        <PrivacySlider />
       </div>
     </div>
   )
@@ -113,7 +221,7 @@ style.textContent = `
   }
 
   .sidebar {
-    width: 280px;
+    width: 320px;
     background: white;
     border-right: 1px solid #e5e7eb;
     display: flex;
@@ -140,12 +248,31 @@ style.textContent = `
     font-size: 12px;
   }
 
+  .sidebar-section {
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+
+  .divider {
+    height: 1px;
+    background: #f3f4f6;
+    margin: 16px 0;
+  }
+
   .deployment-badge {
     border-left: 4px solid #3b82f6;
     padding: 12px;
     background: #f9fafb;
     border-radius: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
   .deployment-name {
@@ -157,7 +284,7 @@ style.textContent = `
   }
 
   .deployment-url {
-    font-size: 12px;
+    font-size: 11px;
     color: #6b7280;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -167,7 +294,7 @@ style.textContent = `
   .features {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .feature-item {
@@ -194,6 +321,134 @@ style.textContent = `
 
   .feature-value.off {
     color: #ef4444;
+  }
+
+  .privacy-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .privacy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+  }
+
+  .privacy-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+  }
+
+  .privacy-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3b82f6;
+  }
+
+  .privacy-slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e5e7eb;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .privacy-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .privacy-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .privacy-percentage {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    text-align: center;
+    padding: 4px 0;
+  }
+
+  .privacy-loading {
+    font-size: 11px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 4px;
+  }
+
+  .routing-info {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 8px;
+    margin-top: 4px;
+  }
+
+  .routing-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+
+  .adapter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+
+  .adapter-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .adapter-name {
+    width: 70px;
+    color: #6b7280;
+    font-size: 11px;
+  }
+
+  .probability-bar {
+    flex: 1;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .probability-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    border-radius: 2px;
+  }
+
+  .probability-text {
+    width: 35px;
+    text-align: right;
+    color: #111827;
+    font-weight: 600;
+    font-size: 11px;
   }
 
   .main-content {
