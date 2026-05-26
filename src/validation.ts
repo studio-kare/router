@@ -48,8 +48,20 @@ export const validateStreamChatParams = (body: unknown): Effect.Effect<StreamCha
       )
     }
 
+    // Validate privacy (optional, [0, 1])
+    let privacy: number | undefined
+    if (obj.privacy !== undefined) {
+      if (typeof obj.privacy !== "number" || obj.privacy < 0 || obj.privacy > 1) {
+        return yield* Effect.fail(
+          new ValidationError("privacy", "format", "privacy must be a number between 0 and 1")
+        )
+      }
+      privacy = obj.privacy
+    }
+
     return {
       model: obj.model,
       messages: obj.messages,
+      privacy,
     } as StreamChatParams
   })

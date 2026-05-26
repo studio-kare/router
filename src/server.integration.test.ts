@@ -27,6 +27,7 @@ describe("Integration: Real Anthropic API", () => {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         messages: [{ role: "user", content: "Say 'hello world' only, nothing else." }],
+        privacy: 0.95, // Very high privacy → Anthropic
       }),
     })
 
@@ -71,8 +72,9 @@ describe("Integration: Real Anthropic API", () => {
       const request = new Request("http://localhost/v1/chat/completions", {
         method: "POST",
         body: JSON.stringify({
-          model: "claude-opus-4-1",
+          model: "claude-sonnet-4-20250514",
           messages: [{ role: "user", content: "hi" }],
+          privacy: 0.95, // Very high privacy → Anthropic
         }),
       })
 

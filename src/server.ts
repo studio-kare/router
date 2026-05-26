@@ -6,6 +6,7 @@ import type { StreamChatParams } from "./types"
 import { ValidationError } from "./types"
 import { validateStreamChatParams } from "./validation"
 import { logInfo, logError } from "./logging"
+import { privacyToStrategy } from "./privacy"
 
 // --- SSE helpers ---
 
@@ -22,17 +23,17 @@ const sseChunk = (text: string, model: string): string =>
 
 const sseDone = "data: [DONE]\n\n"
 
-// --- Adapter selection (by model prefix) ---
+// --- Adapter selection (by privacy strategy, not model) ---
 
-const selectAndStream = (params: StreamChatParams) => {
-  const { model } = params
-  if (model.startsWith("claude")) {
+const selectAndStream = (params: StreamChatParams, strategy: ReturnType<typeof privacyToStrategy>) => {
+  // Privacy level determines which adapter to use
+  if (strategy.adapter === "anthropic") {
     return Effect.gen(function* () {
       const adapter = yield* AnthropicAdapter
       return yield* adapter.streamChat(params)
     })
   }
-  if (model.startsWith("gpt-") || model.startsWith("o1") || model.startsWith("o3")) {
+  if (strategy.adapter === "openai") {
     return Effect.gen(function* () {
       const adapter = yield* OpenAIAdapter
       return yield* adapter.streamChat(params)
@@ -58,8 +59,9 @@ export const handleChatCompletions = (
     })
 
     const params = yield* validateStreamChatParams(body)
+    const strategy = privacyToStrategy(params.privacy)
 
-    const chunkStream = yield* selectAndStream(params)
+    const chunkStream = yield* selectAndStream(params, strategy)
 
     const responseBody = new ReadableStream({
       async start(controller) {
@@ -127,6 +129,43 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         return new Response(JSON.stringify({ status: "ok" }), {
           headers: { "Content-Type": "application/json" },
         })
+      }
+      if (req.method === "GET" && url.pathname === "/v1/privacy/info") {
+        const privacyParam = url.searchParams.get("privacy")
+        let privacy = 0.8
+
+        if (privacyParam !== null) {
+          const parsed = parseFloat(privacyParam)
+          if (isNaN(parsed) || parsed < 0 || parsed > 1) {
+            return new Response(
+              JSON.stringify({ error: "privacy must be a number between 0 and 1" }),
+              { status: 400, headers: { "Content-Type": "application/json" } }
+            )
+          }
+          privacy = parsed
+        }
+
+        const strategy = privacyToStrategy(privacy)
+        return new Response(
+          JSON.stringify({
+            privacy,
+            routing: {
+              anthropic: {
+                probability: strategy.probabilities.anthropic,
+                costMultiplier: strategy.costMultiplier,
+              },
+              openai: {
+                probability: strategy.probabilities.openai,
+                costMultiplier: strategy.costMultiplier,
+              },
+              openrouter: {
+                probability: strategy.probabilities.openrouter,
+                costMultiplier: strategy.costMultiplier,
+              },
+            },
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        )
       }
       if (req.method === "POST" && url.pathname === "/v1/chat/completions") {
         return runtime.runPromise(handleChatCompletions(req))

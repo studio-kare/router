@@ -11,10 +11,10 @@ const testAdapters = Layer.mergeAll(
   OpenRouterAdapterTest("openrouter response")
 )
 
-const makeRequest = (model: string) =>
+const makeRequest = (model: string, privacy?: number) =>
   new Request("http://localhost/v1/chat/completions", {
     method: "POST",
-    body: JSON.stringify({ model, messages: [{ role: "user", content: "hi" }] }),
+    body: JSON.stringify({ model, messages: [{ role: "user", content: "hi" }], privacy }),
   })
 
 const collectSSE = async (response: Response): Promise<string> => {
@@ -27,23 +27,23 @@ const collectSSE = async (response: Response): Promise<string> => {
     .join("")
 }
 
-test("claude model routes to Anthropic adapter", async () => {
+test("high privacy (0.9) routes to Anthropic adapter", async () => {
   const response = await Effect.runPromise(
-    handleChatCompletions(makeRequest("claude-sonnet-4-6")).pipe(Effect.provide(testAdapters))
+    handleChatCompletions(makeRequest("claude-sonnet-4-6", 0.9)).pipe(Effect.provide(testAdapters))
   )
   expect(await collectSSE(response)).toBe("anthropic response")
 })
 
-test("gpt model routes to OpenAI adapter", async () => {
+test("medium privacy (0.6) routes to OpenAI adapter", async () => {
   const response = await Effect.runPromise(
-    handleChatCompletions(makeRequest("gpt-4o-mini")).pipe(Effect.provide(testAdapters))
+    handleChatCompletions(makeRequest("gpt-4o-mini", 0.6)).pipe(Effect.provide(testAdapters))
   )
   expect(await collectSSE(response)).toBe("openai response")
 })
 
-test("unknown model routes to OpenRouter adapter", async () => {
+test("low privacy (0.2) routes to OpenRouter adapter", async () => {
   const response = await Effect.runPromise(
-    handleChatCompletions(makeRequest("meta-llama/llama-3.1-8b-instruct")).pipe(
+    handleChatCompletions(makeRequest("meta-llama/llama-3.1-8b-instruct", 0.2)).pipe(
       Effect.provide(testAdapters)
     )
   )
@@ -93,4 +93,38 @@ test("rejects request with malformed message object", async () => {
   )
   expect(response.status).toBe(400)
   expect((await response.json()).field).toBe("messages")
+})
+
+test("privacy info: high privacy routes to Anthropic", async () => {
+  const { privacyToStrategy } = await import("./privacy.ts")
+  const strategy = privacyToStrategy(0.9)
+  expect(strategy.adapter).toBe("anthropic")
+  expect(strategy.probabilities.anthropic).toBe(1.0)
+  expect(strategy.probabilities.openai).toBe(0.0)
+  expect(strategy.probabilities.openrouter).toBe(0.0)
+})
+
+test("privacy info: medium privacy routes to OpenAI", async () => {
+  const { privacyToStrategy } = await import("./privacy.ts")
+  const strategy = privacyToStrategy(0.6)
+  expect(strategy.adapter).toBe("openai")
+  expect(strategy.probabilities.openai).toBe(1.0)
+  expect(strategy.probabilities.anthropic).toBe(0.0)
+  expect(strategy.probabilities.openrouter).toBe(0.0)
+})
+
+test("privacy info: low privacy routes to OpenRouter", async () => {
+  const { privacyToStrategy } = await import("./privacy.ts")
+  const strategy = privacyToStrategy(0.2)
+  expect(strategy.adapter).toBe("openrouter")
+  expect(strategy.probabilities.openrouter).toBe(1.0)
+  expect(strategy.probabilities.anthropic).toBe(0.0)
+  expect(strategy.probabilities.openai).toBe(0.0)
+})
+
+test("privacy info: default privacy is 0.8", async () => {
+  const { privacyToStrategy } = await import("./privacy.ts")
+  const strategy = privacyToStrategy()
+  expect(strategy.adapter).toBe("openai") // 0.8 is in OpenAI range [0.5, 0.85)
+  expect(strategy.probabilities.openai).toBe(1.0)
 })
