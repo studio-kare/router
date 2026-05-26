@@ -594,6 +594,15 @@ export function injectStyles() {
     font-size: 14px;
     color: #6b7280;
     margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  .try-it-description code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    color: #111827;
   }
 
   .curl-container {

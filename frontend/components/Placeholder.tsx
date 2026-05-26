@@ -51,6 +51,7 @@ export function Placeholder() {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "claude-3-5-sonnet-20241022",
+    "privacy": 0.9,
     "messages": [{"role": "user", "content": "Hello, world!"}]
   }'`
     : null
@@ -83,7 +84,10 @@ export function Placeholder() {
         <div className="try-it-section">
           <h2>Try it Now</h2>
           <p className="try-it-description">
-            Copy and paste this curl command to test the API. Watch your API key's usage ledger update in the sidebar.
+            Copy and paste this curl command to test the API. The <code>privacy</code> parameter controls routing:
+            <br />
+            <strong>≥ 0.85</strong> = Anthropic (highest quality) •{" "}
+            <strong>≥ 0.5</strong> = OpenAI (balanced) • <strong>&lt; 0.5</strong> = OpenRouter (cheapest)
           </p>
           <div className="curl-container">
             <pre className="curl-command">{curlCommand}</pre>
