@@ -166,61 +166,55 @@ export function KeysManager() {
               </div>
             ))}
           </div>
-          {selectedKeyId && (
-            <div className="key-details">
-              {keys.find((k) => k.id === selectedKeyId) && (
-                (() => {
-                  const k = keys.find((k) => k.id === selectedKeyId)!
-                  return (
-                    <>
-                      <div className="details-header">
-                        <h3>Key Details</h3>
-                        <button
-                          className="close-btn"
-                          onClick={() => setSelectedKeyId(null)}
-                          title="Close"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <div className="details-content">
-                        <div className="detail-row">
-                          <span className="detail-label">Key:</span>
-                          <span className="detail-value">{k.key}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="detail-label">ID:</span>
-                          <span className="detail-value">{k.id}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="detail-label">Created:</span>
-                          <span className="detail-value">
-                            {new Date(k.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                        {k.lastUsed && (
-                          <div className="detail-row">
-                            <span className="detail-label">Last Used:</span>
-                            <span className="detail-value">
-                              {new Date(k.lastUsed).toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-                        {k.revokedAt && (
-                          <div className="detail-row">
-                            <span className="detail-label">Revoked:</span>
-                            <span className="detail-value">
-                              {new Date(k.revokedAt).toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )
-                })()
-              )}
-            </div>
-          )}
+          {selectedKeyId && keys.find((k) => k.id === selectedKeyId) ? (() => {
+            const k = keys.find((k) => k.id === selectedKeyId)!
+            return (
+              <div className="key-details">
+                <div className="details-header">
+                  <h3>Key Details</h3>
+                  <button
+                    className="close-btn"
+                    onClick={() => setSelectedKeyId(null)}
+                    title="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="details-content">
+                  <div className="detail-row">
+                    <span className="detail-label">Key:</span>
+                    <span className="detail-value">{k.key}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">ID:</span>
+                    <span className="detail-value">{k.id}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Created:</span>
+                    <span className="detail-value">
+                      {new Date(k.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  {k.lastUsed && (
+                    <div className="detail-row">
+                      <span className="detail-label">Last Used:</span>
+                      <span className="detail-value">
+                        {new Date(k.lastUsed).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {k.revokedAt && (
+                    <div className="detail-row">
+                      <span className="detail-label">Revoked:</span>
+                      <span className="detail-value">
+                        {new Date(k.revokedAt).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })() : null}
         </>
       )}
     </div>
