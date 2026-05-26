@@ -368,6 +368,11 @@ export function injectStyles() {
     opacity: 0.6;
   }
 
+  .key-item.selected {
+    background: #eff6ff;
+    border-left-color: #3b82f6;
+  }
+
   .key-info {
     flex: 1;
   }
@@ -406,6 +411,79 @@ export function injectStyles() {
   .key-lastused {
     color: #6b7280;
     font-size: 10px;
+  }
+
+  .key-details {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+
+  .details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .details-header h3 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111827;
+    text-transform: uppercase;
+  }
+
+  .close-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    background: none;
+    color: #6b7280;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+  }
+
+  .close-btn:hover {
+    color: #111827;
+  }
+
+  .details-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .detail-label {
+    color: #6b7280;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .detail-value {
+    color: #111827;
+    font-family: monospace;
+    word-break: break-all;
+    flex: 1;
+    text-align: right;
   }
 
   .revoke-btn {
