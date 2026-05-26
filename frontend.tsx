@@ -19,6 +19,14 @@ interface PrivacyInfo {
   }
 }
 
+interface ApiKeyInfo {
+  id: string
+  key: string
+  createdAt: number
+  lastUsed: number | null
+  revokedAt: number | null
+}
+
 function PrivacySlider() {
   const [privacy, setPrivacy] = useState(0.8)
   const [privacyInfo, setPrivacyInfo] = useState<PrivacyInfo | null>(null)
@@ -111,6 +119,136 @@ function PrivacySlider() {
   )
 }
 
+function KeysManager() {
+  const [keys, setKeys] = useState<ApiKeyInfo[]>([])
+  const [loading, setLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [newKey, setNewKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const fetchKeys = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/v1/keys")
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setKeys(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateKey = async () => {
+    setGenerating(true)
+    try {
+      const res = await fetch("/v1/keys/generate", { method: "POST" })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setNewKey(data.key)
+      await fetchKeys()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const revokeKey = async (key: string) => {
+    try {
+      const res = await fetch("/v1/keys/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      await fetchKeys()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const copyToClipboard = async () => {
+    if (newKey) {
+      await navigator.clipboard.writeText(newKey)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchKeys()
+  }, [])
+
+  return (
+    <div className="keys-section">
+      <div className="keys-header">
+        <span className="keys-label">API Keys</span>
+        <button
+          className="generate-btn"
+          onClick={generateKey}
+          disabled={generating}
+          title="Generate new API key"
+        >
+          {generating ? "..." : "+"}
+        </button>
+      </div>
+
+      {newKey && (
+        <div className="new-key-alert">
+          <div className="new-key-label">New Key Generated</div>
+          <div className="new-key-value">{newKey}</div>
+          <button className="copy-btn" onClick={copyToClipboard}>
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      )}
+
+      {loading && <div className="keys-loading">Loading...</div>}
+
+      {!loading && keys.length === 0 && (
+        <div className="keys-empty">No keys yet. Create one to get started.</div>
+      )}
+
+      {!loading && keys.length > 0 && (
+        <div className="keys-list">
+          {keys.map((k) => (
+            <div key={k.id} className={`key-item ${k.revokedAt ? "revoked" : ""}`}>
+              <div className="key-info">
+                <div className="key-display">{k.key}</div>
+                <div className="key-meta">
+                  {k.revokedAt ? (
+                    <span className="key-status revoked">Revoked</span>
+                  ) : (
+                    <>
+                      <span className="key-status active">Active</span>
+                      {k.lastUsed && (
+                        <span className="key-lastused">
+                          Last used: {new Date(k.lastUsed).toLocaleDateString()}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+              {!k.revokedAt && (
+                <button
+                  className="revoke-btn"
+                  onClick={() => revokeKey(k.key)}
+                  title="Revoke this key"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DeploymentSidebar() {
   const [deployment, setDeployment] = useState<DeploymentInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -190,6 +328,10 @@ function DeploymentSidebar() {
         <div className="divider" />
 
         <PrivacySlider />
+
+        <div className="divider" />
+
+        <KeysManager />
       </div>
     </div>
   )
@@ -449,6 +591,194 @@ style.textContent = `
     color: #111827;
     font-weight: 600;
     font-size: 11px;
+  }
+
+  .keys-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .keys-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+  }
+
+  .keys-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+  }
+
+  .generate-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+
+  .generate-btn:hover:not(:disabled) {
+    background: #2563eb;
+  }
+
+  .generate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .new-key-alert {
+    background: #ecfdf5;
+    border: 1px solid #d1fae5;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .new-key-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #059669;
+    margin-bottom: 4px;
+  }
+
+  .new-key-value {
+    font-family: monospace;
+    font-size: 11px;
+    color: #111827;
+    background: white;
+    padding: 6px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+
+  .copy-btn {
+    width: 100%;
+    padding: 4px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .copy-btn:hover {
+    background: #059669;
+  }
+
+  .keys-loading {
+    font-size: 11px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 4px;
+  }
+
+  .keys-empty {
+    font-size: 11px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 8px;
+    background: #f9fafb;
+    border-radius: 4px;
+  }
+
+  .keys-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .key-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 6px;
+    background: #f9fafb;
+    border-radius: 4px;
+    border-left: 3px solid #3b82f6;
+    font-size: 11px;
+  }
+
+  .key-item.revoked {
+    border-left-color: #ef4444;
+    opacity: 0.6;
+  }
+
+  .key-info {
+    flex: 1;
+  }
+
+  .key-display {
+    font-family: monospace;
+    font-size: 10px;
+    color: #111827;
+    margin-bottom: 2px;
+    word-break: break-all;
+  }
+
+  .key-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .key-status {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .key-status.active {
+    background: #d1fae5;
+    color: #059669;
+  }
+
+  .key-status.revoked {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  .key-lastused {
+    color: #6b7280;
+    font-size: 10px;
+  }
+
+  .revoke-btn {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    background: #fecaca;
+    color: #dc2626;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+
+  .revoke-btn:hover {
+    background: #fca5a5;
   }
 
   .main-content {

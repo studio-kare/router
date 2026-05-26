@@ -8,6 +8,7 @@ import { validateStreamChatParams } from "./validation"
 import { logInfo, logError } from "./logging"
 import { privacyToStrategy } from "./privacy"
 import { Deployment } from "./deployment"
+import { KeyService } from "./keys"
 
 // --- SSE helpers ---
 
@@ -48,12 +49,35 @@ const selectAndStream = (params: StreamChatParams, strategy: ReturnType<typeof p
 
 // --- Handler (requires all three adapters in context) ---
 
-export type AdapterEnv = OpenRouterAdapter | OpenAIAdapter | AnthropicAdapter | Deployment
+export type AdapterEnv = OpenRouterAdapter | OpenAIAdapter | AnthropicAdapter | Deployment | KeyService
 
 export const handleChatCompletions = (
   req: Request
 ): Effect.Effect<Response, never, AdapterEnv> =>
   Effect.gen(function* () {
+    // Validate API key
+    const authHeader = req.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid authorization header" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    const apiKey = authHeader.slice(7)
+    const keyService = yield* KeyService
+    const validKey = yield* keyService.validateKey(apiKey)
+
+    if (!validKey) {
+      return new Response(
+        JSON.stringify({ error: "Invalid API key" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    // Record usage
+    yield* keyService.recordUsage(apiKey)
+
     const body = yield* Effect.tryPromise({
       try: () => req.json() as Promise<unknown>,
       catch: () => new Error("malformed JSON"),
@@ -133,7 +157,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       hmr: true,
       console: true,
     },
-    fetch(req) {
+    async fetch(req) {
       const url = new URL(req.url)
       if (req.method === "GET" && url.pathname === "/health") {
         return new Response(JSON.stringify({ status: "ok" }), {
@@ -189,6 +213,62 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "POST" && url.pathname === "/v1/chat/completions") {
         return runtime.runPromise(handleChatCompletions(req))
+      }
+      if (req.method === "POST" && url.pathname === "/v1/keys/generate") {
+        return runtime.runPromise(
+          Effect.gen(function* () {
+            const keyService = yield* KeyService
+            const newKey = yield* keyService.generateKey()
+            return new Response(JSON.stringify(newKey), {
+              headers: { "Content-Type": "application/json" },
+              status: 201,
+            })
+          })
+        )
+      }
+      if (req.method === "GET" && url.pathname === "/v1/keys") {
+        return runtime.runPromise(
+          Effect.gen(function* () {
+            const keyService = yield* KeyService
+            const keys = yield* keyService.listKeys()
+            // Don't expose full keys to the client, only show masked versions
+            const maskedKeys = keys.map((k) => ({
+              id: k.id,
+              key: k.key.slice(0, 7) + "..." + k.key.slice(-4),
+              createdAt: k.createdAt,
+              lastUsed: k.lastUsed,
+              revokedAt: k.revokedAt,
+            }))
+            return new Response(JSON.stringify(maskedKeys), {
+              headers: { "Content-Type": "application/json" },
+            })
+          })
+        )
+      }
+      if (req.method === "POST" && url.pathname === "/v1/keys/revoke") {
+        try {
+          const body = (await req.json()) as { key?: string }
+          if (!body.key) {
+            return new Response(
+              JSON.stringify({ error: "Missing key field" }),
+              { status: 400, headers: { "Content-Type": "application/json" } }
+            )
+          }
+          return runtime.runPromise(
+            Effect.gen(function* () {
+              const keyService = yield* KeyService
+              yield* keyService.revokeKey(body.key)
+              return new Response(JSON.stringify({ ok: true }), {
+                headers: { "Content-Type": "application/json" },
+              })
+            })
+          )
+        } catch (e) {
+          return new Response(
+            JSON.stringify({ error: "Invalid JSON" }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          )
+        }
       }
       return new Response("Not found", { status: 404 })
     },
