@@ -57,7 +57,7 @@ export function Placeholder() {
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "claude-opus-4",
     "privacy": ${privacy},
     "messages": [{"role": "user", "content": "Hello, world!"}]
   }'`
