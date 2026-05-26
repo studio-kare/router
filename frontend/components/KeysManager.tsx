@@ -1,14 +1,19 @@
 import React, { useState } from "react"
 import type { ApiKeyInfo } from "../types"
 
-export function KeysManager() {
+export function KeysManager({
+  selectedKey,
+  onSelectKey,
+}: {
+  selectedKey: ApiKeyInfo | null
+  onSelectKey: (key: ApiKeyInfo | null) => void
+}) {
   const [keys, setKeys] = useState<ApiKeyInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [newKey, setNewKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null)
 
   const fetchKeys = async () => {
     setLoading(true)
@@ -125,97 +130,48 @@ export function KeysManager() {
       )}
 
       {!loading && keys.length > 0 && (
-        <>
-          <div className="keys-list">
-            {keys.map((k) => (
-              <div
-                key={k.id}
-                className={`key-item ${k.revokedAt ? "revoked" : ""} ${selectedKeyId === k.id ? "selected" : ""}`}
-                onClick={() => setSelectedKeyId(selectedKeyId === k.id ? null : k.id)}
-                style={{ cursor: "pointer" }}
-              >
-                <div className="key-info">
-                  <div className="key-display">{k.key}</div>
-                  <div className="key-meta">
-                    {k.revokedAt ? (
-                      <span className="key-status revoked">Revoked</span>
-                    ) : (
-                      <>
-                        <span className="key-status active">Active</span>
-                        {k.lastUsed && (
-                          <span className="key-lastused">
-                            Last used: {new Date(k.lastUsed).toLocaleDateString()}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-                {!k.revokedAt && (
-                  <button
-                    className="revoke-btn"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      revokeKey(k.key)
-                    }}
-                    title="Revoke this key"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {selectedKeyId && keys.find((k) => k.id === selectedKeyId) ? (() => {
-            const k = keys.find((k) => k.id === selectedKeyId)!
-            return (
-              <div className="key-details">
-                <div className="details-header">
-                  <h3>Key Details</h3>
-                  <button
-                    className="close-btn"
-                    onClick={() => setSelectedKeyId(null)}
-                    title="Close"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="details-content">
-                  <div className="detail-row">
-                    <span className="detail-label">Key:</span>
-                    <span className="detail-value">{k.key}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">ID:</span>
-                    <span className="detail-value">{k.id}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Created:</span>
-                    <span className="detail-value">
-                      {new Date(k.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  {k.lastUsed && (
-                    <div className="detail-row">
-                      <span className="detail-label">Last Used:</span>
-                      <span className="detail-value">
-                        {new Date(k.lastUsed).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                  {k.revokedAt && (
-                    <div className="detail-row">
-                      <span className="detail-label">Revoked:</span>
-                      <span className="detail-value">
-                        {new Date(k.revokedAt).toLocaleString()}
-                      </span>
-                    </div>
+        <div className="keys-list">
+          {keys.map((k) => (
+            <div
+              key={k.id}
+              className={`key-item ${k.revokedAt ? "revoked" : ""} ${selectedKey?.id === k.id ? "selected" : ""}`}
+              onClick={() => {
+                onSelectKey(selectedKey?.id === k.id ? null : k)
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              <div className="key-info">
+                <div className="key-display">{k.key}</div>
+                <div className="key-meta">
+                  {k.revokedAt ? (
+                    <span className="key-status revoked">Revoked</span>
+                  ) : (
+                    <>
+                      <span className="key-status active">Active</span>
+                      {k.lastUsed && (
+                        <span className="key-lastused">
+                          Last used: {new Date(k.lastUsed).toLocaleDateString()}
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
-            )
-          })() : null}
-        </>
+              {!k.revokedAt && (
+                <button
+                  className="revoke-btn"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    revokeKey(k.key)
+                  }}
+                  title="Revoke this key"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )

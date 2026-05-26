@@ -13,6 +13,18 @@ export function injectStyles() {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  .details-column {
+    width: 340px;
+    background: white;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+    padding: 16px 12px;
   }
 
   .sidebar-header {
@@ -413,26 +425,18 @@ export function injectStyles() {
     font-size: 10px;
   }
 
-  .key-details {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 12px;
-    margin-top: 8px;
-  }
-
-  .details-header {
+  .details-column .details-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
     border-bottom: 1px solid #e5e7eb;
   }
 
-  .details-header h3 {
+  .details-column .details-header h2 {
     margin: 0;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: #111827;
     text-transform: uppercase;
@@ -466,24 +470,26 @@ export function injectStyles() {
 
   .detail-row {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     font-size: 11px;
+    padding: 8px;
+    background: #f9fafb;
+    border-radius: 4px;
   }
 
   .detail-label {
     color: #6b7280;
     font-weight: 600;
-    flex-shrink: 0;
+    text-transform: uppercase;
+    font-size: 10px;
   }
 
   .detail-value {
     color: #111827;
     font-family: monospace;
     word-break: break-all;
-    flex: 1;
-    text-align: right;
+    font-size: 12px;
   }
 
   .revoke-btn {

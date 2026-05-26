@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from "react"
 import { PrivacySlider } from "./PrivacySlider"
 import { KeysManager } from "./KeysManager"
-import type { DeploymentInfo } from "../types"
+import type { DeploymentInfo, ApiKeyInfo } from "../types"
 
-export function DeploymentSidebar() {
+export function DeploymentSidebar({
+  selectedKey,
+  onSelectKey,
+}: {
+  selectedKey: ApiKeyInfo | null
+  onSelectKey: (key: ApiKeyInfo | null) => void
+}) {
   const [deployment, setDeployment] = useState<DeploymentInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -85,7 +91,7 @@ export function DeploymentSidebar() {
 
         <div className="divider" />
 
-        <KeysManager />
+        <KeysManager selectedKey={selectedKey} onSelectKey={onSelectKey} />
       </div>
     </div>
   )
