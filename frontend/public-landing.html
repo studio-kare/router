@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farmer: Free LLM Router</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f9f9f9;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 2.5em; margin-bottom: 10px; }
+    h2 { font-size: 1.8em; margin-top: 40px; margin-bottom: 20px; }
+    h3 { font-size: 1.3em; margin-top: 20px; margin-bottom: 10px; }
+    p { margin-bottom: 15px; }
+    code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+    pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      margin-bottom: 20px;
+      font-size: 0.9em;
+    }
+    ul, ol { margin-left: 20px; margin-bottom: 15px; }
+    li { margin-bottom: 8px; }
+    .stats {
+      display: flex;
+      gap: 30px;
+      margin: 30px 0;
+      flex-wrap: wrap;
+    }
+    .stat {
+      flex: 1;
+      min-width: 150px;
+      padding: 20px;
+      background: white;
+      border-radius: 5px;
+      border-left: 4px solid #4CAF50;
+    }
+    .stat-value {
+      font-size: 1.8em;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    .stat-label {
+      font-size: 0.85em;
+      color: #666;
+      margin-top: 5px;
+    }
+    .button {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 3px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    .button:hover { background: #0056b3; }
+    .warning {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 3px;
+    }
+    .success {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 3px;
+    }
+    footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌾 Farmer: Free LLM Router</h1>
+    <p style="font-size: 1.1em; color: #666;">An intelligent LLM API gateway powered by accumulated credits. <strong>Free for everyone.</strong></p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="pool-remaining">--</div>
+        <div class="stat-label">Tokens remaining today</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="requests-today">--</div>
+        <div class="stat-label">Requests processed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="active-ips">--</div>
+        <div class="stat-label">Active IPs today</div>
+      </div>
+    </div>
+
+    <h2>🚀 Quick Start</h2>
+    <p>Use the public API key in your requests:</p>
+    <pre><code>curl -X POST https://router.studiokare.nl/v1/chat/completions \
+  -H "Authorization: Bearer sk_public_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'</code></pre>
+
+    <p>Or in Python:</p>
+    <pre><code>from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk_public_...",
+    base_url="https://router.studiokare.nl"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+print(response.choices[0].message.content)</code></pre>
+
+    <h2>📏 Rate Limits & Fair Use</h2>
+    <ul>
+      <li><strong>100 requests/second</strong> per IP (fairness limit)</li>
+      <li><strong>500 requests/second</strong> hard ceiling (5min cooldown if exceeded)</li>
+      <li><strong>Shared daily pool</strong> of tokens (resets at midnight UTC)</li>
+      <li><strong>Remaining pool</strong> shown in response headers: <code>X-RateLimit-PoolRemaining</code></li>
+    </ul>
+
+    <div class="warning">
+      <strong>⚠️ Be Respectful</strong><br>
+      This is a shared resource powered by accumulated credits.
+      <ul style="margin-top: 10px;">
+        <li>Don't abuse or load-test the service</li>
+        <li>No crawling or large-scale scraping</li>
+        <li>IPs that violate limits may be permanently banned</li>
+        <li>No SLA: service may go down</li>
+      </ul>
+    </div>
+
+    <h2>📚 Available Models</h2>
+    <p>The router intelligently selects from:</p>
+    <ul>
+      <li><strong>OpenAI:</strong> gpt-4o, gpt-4-turbo, gpt-3.5-turbo</li>
+      <li><strong>Anthropic:</strong> claude-3-5-sonnet, claude-3-opus</li>
+      <li><strong>OpenRouter:</strong> llama-3.1, mistral, and many more</li>
+    </ul>
+    <p>Selection is based on the <code>privacy</code> parameter (0-1) and model availability.</p>
+
+    <h2>🔐 Privacy & Data</h2>
+    <ul>
+      <li>Your IP address is logged for rate limiting and abuse prevention</li>
+      <li>Request metadata is tracked (model, tokens, timestamp)</li>
+      <li>Logs are retained for 30 days</li>
+      <li>No authentication beyond API key needed</li>
+    </ul>
+
+    <h2>📖 Resources</h2>
+    <ul>
+      <li><a href="/api-docs" class="button">API Documentation</a></li>
+      <li><a href="https://github.com/studio-kare/router" class="button">Source Code</a></li>
+      <li><a href="/admin" class="button">Admin Dashboard</a></li>
+    </ul>
+
+    <h2>❓ FAQ</h2>
+    <h3>Is this really free?</h3>
+    <p>Yes! It's powered by accumulated credits and offered as a gift to the community.</p>
+
+    <h3>What happens when the pool runs out?</h3>
+    <p>We'll either refill it or upgrade to a paid tier. You'll see a clear message if the pool is depleted.</p>
+
+    <h3>Can I run my own instance?</h3>
+    <p>Yes! Farmer is open source. Deploy it yourself, add your own API keys, and share with friends.</p>
+
+    <h3>Why did my IP get banned?</h3>
+    <p>IPs are banned for abuse (exceeding rate limits, large-scale scraping, DDoS attempts). If you believe it's a mistake, contact support.</p>
+
+    <h2>⚡ Technical Details</h2>
+    <ul>
+      <li><strong>Base URL:</strong> https://router.studiokare.nl</li>
+      <li><strong>API:</strong> OpenAI-compatible <code>/v1/chat/completions</code></li>
+      <li><strong>Streaming:</strong> Server-Sent Events (SSE)</li>
+      <li><strong>Status:</strong> <a href="/health">/health</a></li>
+    </ul>
+
+    <div class="success">
+      <strong>✨ Built with Bun & Effect</strong><br>
+      Farmer is a high-performance LLM router written in TypeScript using Bun runtime and Effect library.
+    </div>
+
+    <footer>
+      <p>Made with ❤️ by <a href="https://studiokare.nl">Studio Kare</a></p>
+      <p style="margin-top: 10px; font-size: 0.9em;">
+        <a href="/terms">Terms</a> |
+        <a href="/privacy">Privacy</a> |
+        <a href="https://github.com/studio-kare/router/issues">Report Issues</a>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    // Fetch and display stats
+    async function updateStats() {
+      try {
+        const res = await fetch('/public/stats')
+        if (!res.ok) return
+        const data = await res.json()
+
+        document.getElementById('pool-remaining').textContent =
+          (data.poolRemaining || 0).toLocaleString()
+        document.getElementById('requests-today').textContent =
+          (data.requestsToday || 0).toLocaleString()
+        document.getElementById('active-ips').textContent =
+          (data.activeIps || 0).toLocaleString()
+      } catch (e) {
+        console.error('Failed to fetch stats:', e)
+      }
+    }
+
+    // Update on load and every 10 seconds
+    updateStats()
+    setInterval(updateStats, 10000)
+  </script>
+</body>
+</html>
