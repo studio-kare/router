@@ -353,6 +353,7 @@ export const handlePublicChatCompletions = (
 
 import indexHtml from "../index.html"
 import publicLandingHtml from "../frontend/public-landing.html"
+import adminDashboardHtml from "../frontend/admin.html"
 
 export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
   const runtime = ManagedRuntime.make(adapters)
@@ -385,6 +386,11 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       if (deployment.name === "public") {
         if (req.method === "GET" && url.pathname === "/") {
           return new Response(publicLandingHtml, {
+            headers: { "Content-Type": "text/html" },
+          })
+        }
+        if (req.method === "GET" && url.pathname === "/admin") {
+          return new Response(adminDashboardHtml, {
             headers: { "Content-Type": "text/html" },
           })
         }

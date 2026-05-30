@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farmer Admin Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    h1 { margin-bottom: 10px; }
+    .status { background: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+    .pool-bar {
+      width: 100%;
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .pool-fill {
+      height: 100%;
+      background: #ff9800;
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 0.85em;
+      font-weight: bold;
+    }
+    .table-section { background: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th {
+      background: #f9f9f9;
+      padding: 10px;
+      text-align: left;
+      border-bottom: 2px solid #ddd;
+      font-weight: 600;
+    }
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    tr:hover { background: #f9f9f9; }
+    .button {
+      padding: 5px 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.85em;
+    }
+    .button:hover { background: #0056b3; }
+    .button.danger {
+      background: #dc3545;
+    }
+    .button.danger:hover {
+      background: #c82333;
+    }
+    .error { color: #dc3545; }
+    .success { color: #28a745; }
+    .loading { opacity: 0.5; }
+    .refresh-btn {
+      padding: 8px 15px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .refresh-btn:hover { background: #218838; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚙️ Farmer Admin Dashboard</h1>
+    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+
+    <div class="status">
+      <h2>📊 Pool Status</h2>
+      <div>
+        <strong>Used Today:</strong> <span id="used-today" class="loading">--</span> /
+        <strong>Pool:</strong> <span id="pool-total">10,000,000</span>
+      </div>
+      <div class="pool-bar">
+        <div class="pool-fill" id="pool-fill" style="width: 0%"></div>
+      </div>
+      <p>
+        <strong>Requests Today:</strong> <span id="requests-today" class="loading">--</span> |
+        <strong>Active IPs:</strong> <span id="active-ips" class="loading">--</span>
+      </p>
+    </div>
+
+    <div class="table-section">
+      <h2>🔝 Top IPs by Token Usage</h2>
+      <table id="top-ips-table">
+        <thead>
+          <tr>
+            <th>IP Address</th>
+            <th>Requests</th>
+            <th>Tokens Used</th>
+            <th>Cost ($)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="top-ips-body" class="loading">
+          <tr><td colspan="5" style="text-align: center;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-section">
+      <h2>🚫 Banned IPs (<span id="ban-count">0</span>)</h2>
+      <table id="banned-table">
+        <thead>
+          <tr>
+            <th>IP Address</th>
+            <th>Reason</th>
+            <th>Banned At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="banned-body" class="loading">
+          <tr><td colspan="4" style="text-align: center;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const adminToken = sessionStorage.getItem('adminToken') ||
+      prompt('Enter admin token:')
+    if (!adminToken) {
+      alert('Admin token required')
+      window.location.href = '/'
+      throw new Error('No admin token')
+    }
+    sessionStorage.setItem('adminToken', adminToken)
+
+    const API_URL = window.location.origin
+    const headers = { 'Authorization': `Bearer ${adminToken}` }
+
+    async function refreshData() {
+      try {
+        const res = await fetch(`${API_URL}/admin/metrics`, { headers })
+        if (!res.ok) {
+          alert('Unauthorized or error')
+          sessionStorage.removeItem('adminToken')
+          window.location.reload()
+          return
+        }
+
+        const data = await res.json()
+
+        // Pool status
+        const used = data.topIps.reduce((sum, ip) => sum + (ip.totalTokens || 0), 0)
+        const pool = data.poolTotal || 10000000
+        const pct = Math.min(100, (used / pool) * 100)
+
+        document.getElementById('used-today').textContent = used.toLocaleString()
+        document.getElementById('pool-fill').style.width = pct + '%'
+        document.getElementById('pool-fill').textContent = pct.toFixed(1) + '%'
+
+        const stats = { totalRequests: 0, uniqueIps: 0 }
+        data.topIps.forEach(ip => {
+          stats.totalRequests += ip.requestCount || 0
+        })
+        stats.uniqueIps = data.topIps.length
+
+        document.getElementById('requests-today').textContent = stats.totalRequests.toLocaleString()
+        document.getElementById('active-ips').textContent = stats.uniqueIps.toLocaleString()
+
+        // Top IPs
+        const tbody = document.getElementById('top-ips-body')
+        tbody.className = ''
+        tbody.innerHTML = data.topIps.map(ip => `
+          <tr>
+            <td><code>${ip.ipAddress}</code></td>
+            <td>${ip.requestCount || 0}</td>
+            <td>${(ip.totalTokens || 0).toLocaleString()}</td>
+            <td>$${(ip.totalCost || 0).toFixed(2)}</td>
+            <td>
+              <button class="button danger" onclick="banIp('${ip.ipAddress}')">Ban</button>
+            </td>
+          </tr>
+        `).join('')
+
+        // Banned IPs
+        const banned = document.getElementById('banned-body')
+        banned.className = ''
+        document.getElementById('ban-count').textContent = data.banned.length
+        banned.innerHTML = data.banned.length ? data.banned.map(b => `
+          <tr>
+            <td><code>${b.ipAddress}</code></td>
+            <td>${b.reason}</td>
+            <td>${new Date(b.bannedAt).toLocaleString()}</td>
+            <td>
+              <button class="button danger" onclick="unbanIp('${b.ipAddress}')">Unban</button>
+            </td>
+          </tr>
+        `).join('') : '<tr><td colspan="4" style="text-align: center; color: #999;">No bans</td></tr>'
+      } catch (e) {
+        console.error('Error:', e)
+        alert('Failed to load metrics: ' + e.message)
+      }
+    }
+
+    async function banIp(ip) {
+      const reason = prompt(`Ban reason for ${ip}:`)
+      if (!reason) return
+
+      try {
+        const res = await fetch(`${API_URL}/admin/ban`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, reason })
+        })
+
+        if (!res.ok) throw new Error('Ban failed')
+        alert(`Banned ${ip}`)
+        refreshData()
+      } catch (e) {
+        alert('Failed to ban IP: ' + e.message)
+      }
+    }
+
+    async function unbanIp(ip) {
+      if (!confirm(`Unban ${ip}?`)) return
+
+      try {
+        const res = await fetch(`${API_URL}/admin/unban`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip })
+        })
+
+        if (!res.ok) throw new Error('Unban failed')
+        alert(`Unbanned ${ip}`)
+        refreshData()
+      } catch (e) {
+        alert('Failed to unban IP: ' + e.message)
+      }
+    }
+
+    // Load on init and every 15 seconds
+    refreshData()
+    setInterval(refreshData, 15000)
+  </script>
+</body>
+</html>
