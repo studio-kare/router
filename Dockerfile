@@ -4,7 +4,7 @@ WORKDIR /build
 
 # Copy package files
 COPY package.json .
-COPY bun.lockb .
+COPY bun.lock .
 
 # Install dependencies
 RUN bun install
