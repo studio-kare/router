@@ -33,6 +33,15 @@ export interface QuotaStatus {
   panic: boolean // true if any limit is critical (>80%)
 }
 
+export interface PublicIpQuotaStatus {
+  ipAddress: string
+  tokensUsedToday: number
+  poolRemaining: number
+  poolTotal: number
+  fairnessRemaining: number
+  panic: boolean
+}
+
 interface KeyLimits {
   fairness: {
     tokens: number
@@ -66,6 +75,13 @@ export class RateLimiter extends Context.Service<
     readonly recordTokens: (key: string, tokens: number) => Effect.Effect<void>
     readonly getQuota: (key: string) => Effect.Effect<QuotaStatus>
     readonly resetBudget: (key: string) => Effect.Effect<void>
+    // Public/IP-based rate limiting
+    readonly checkFairnessForIp: (ip: string) => Effect.Effect<boolean>
+    readonly recordTokensForIp: (ip: string, tokens: number) => Effect.Effect<void>
+    readonly getIpQuota: (ip: string, poolTotal: number) => Effect.Effect<PublicIpQuotaStatus>
+    readonly getIpUsageToday: (ip: string) => Effect.Effect<number>
+    readonly getAllIpUsageToday: () => Effect.Effect<Map<string, number>>
+    readonly resetDailyPool: () => Effect.Effect<void>
   }
 >()("RateLimiter") {}
 
@@ -73,10 +89,16 @@ const createRateLimiterService = () => {
   const limits = new Map<string, KeyLimits>()
   const config = DEFAULT_CONFIG
 
-  const getOrCreateLimits = (key: string): KeyLimits => {
-    if (!limits.has(key)) {
+  // IP-based tracking for public deployment
+  const ipLimits = new Map<string, KeyLimits>()
+  const dailyIpUsage = new Map<string, number>()
+  let dailyPoolResetAt = Date.now() + 24 * 60 * 60 * 1000
+
+  const getOrCreateLimits = (key: string, limitsMap?: Map<string, KeyLimits>): KeyLimits => {
+    const map = limitsMap || limits
+    if (!map.has(key)) {
       const now = Date.now()
-      limits.set(key, {
+      map.set(key, {
         fairness: {
           tokens: config.fairness.requestsPerSec * 10, // Start with 10 seconds worth
           lastRefill: now,
@@ -92,7 +114,7 @@ const createRateLimiterService = () => {
         },
       })
     }
-    return limits.get(key)!
+    return map.get(key)!
   }
 
   const refillFairnessTokens = (keyLimits: KeyLimits): void => {
@@ -124,6 +146,14 @@ const createRateLimiterService = () => {
     if (elapsed > dayMs) {
       keyLimits.budget.tokensUsed = 0
       keyLimits.budget.lastReset = now
+    }
+  }
+
+  const resetDailyPoolIfNeeded = (): void => {
+    const now = Date.now()
+    if (now > dailyPoolResetAt) {
+      dailyIpUsage.clear()
+      dailyPoolResetAt = now + 24 * 60 * 60 * 1000
     }
   }
 
@@ -236,6 +266,67 @@ const createRateLimiterService = () => {
         const keyLimits = getOrCreateLimits(key)
         keyLimits.budget.tokensUsed = 0
         keyLimits.budget.lastReset = Date.now()
+      }),
+
+    // Public deployment: IP-based rate limiting
+    checkFairnessForIp: (ip: string) =>
+      Effect.sync(() => {
+        const ipLimit = getOrCreateLimits(ip, ipLimits)
+        refillFairnessTokens(ipLimit)
+
+        if (ipLimit.fairness.tokens >= 1) {
+          ipLimit.fairness.tokens -= 1
+          return true
+        }
+        return false
+      }),
+
+    recordTokensForIp: (ip: string, tokens: number) =>
+      Effect.sync(() => {
+        resetDailyPoolIfNeeded()
+        const current = dailyIpUsage.get(ip) || 0
+        dailyIpUsage.set(ip, current + tokens)
+      }),
+
+    getIpQuota: (ip: string, poolTotal: number) =>
+      Effect.sync(() => {
+        resetDailyPoolIfNeeded()
+
+        const ipUsed = dailyIpUsage.get(ip) || 0
+        const poolUsed = Array.from(dailyIpUsage.values()).reduce((a, b) => a + b, 0)
+        const poolRemaining = Math.max(0, poolTotal - poolUsed)
+
+        const ipLimit = getOrCreateLimits(ip, ipLimits)
+        refillFairnessTokens(ipLimit)
+
+        const panic = poolRemaining < poolTotal * 0.2 || ipLimit.fairness.tokens < config.fairness.requestsPerSec * 0.2
+
+        return {
+          ipAddress: ip,
+          tokensUsedToday: ipUsed,
+          poolRemaining,
+          poolTotal,
+          fairnessRemaining: Math.floor(ipLimit.fairness.tokens),
+          panic,
+        }
+      }),
+
+    getIpUsageToday: (ip: string) =>
+      Effect.sync(() => {
+        resetDailyPoolIfNeeded()
+        return dailyIpUsage.get(ip) || 0
+      }),
+
+    getAllIpUsageToday: () =>
+      Effect.sync(() => {
+        resetDailyPoolIfNeeded()
+        return new Map(dailyIpUsage)
+      }),
+
+    resetDailyPool: () =>
+      Effect.sync(() => {
+        dailyIpUsage.clear()
+        dailyPoolResetAt = Date.now() + 24 * 60 * 60 * 1000
       }),
   }
 }
