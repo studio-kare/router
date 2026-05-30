@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  farmer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: farmer-public
+    ports:
+      - "3000:3000"
+    environment:
+      DEPLOYMENT: ${DEPLOYMENT:-public}
+      PUBLIC_API_KEY: ${PUBLIC_API_KEY:-sk_public_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
+      PUBLIC_DAILY_POOL: ${PUBLIC_DAILY_POOL:-10000000}
+      PUBLIC_ADMIN_TOKEN: ${PUBLIC_ADMIN_TOKEN:-admin_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      VAL_TOWN_ENDPOINT: ${VAL_TOWN_ENDPOINT:-}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bun", "run", "-e", "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  data:
