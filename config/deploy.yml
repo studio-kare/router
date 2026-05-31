@@ -1,0 +1,57 @@
+service: farmer
+image: studiokare/farmer
+
+servers:
+  web:
+    hosts:
+      - 1.2.3.4  # Change to your server IP
+    port: 3000
+
+registry:
+  server: docker.io
+  username: studiokare  # Change to your Docker Hub username
+  password:
+    - DOCKER_REGISTRY_PASSWORD
+
+env:
+  clear:
+    DEPLOYMENT: public
+    PUBLIC_DAILY_POOL: "10000000"
+  secret:
+    - PUBLIC_API_KEY
+    - PUBLIC_ADMIN_TOKEN
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - OPENROUTER_API_KEY
+    - AZURE_OPENAI_API_KEY
+    - AZURE_OPENAI_ENDPOINT
+
+volumes:
+  - "farmer-data:/app/data"
+
+healthcheck:
+  path: /health
+  interval: 10s
+  timeout: 5s
+
+accessories:
+  db:
+    image: busybox
+    roles:
+      - web
+    directories:
+      - farmer-data:/app/data
+    env:
+      clear:
+        VOLUME_PATH: /app/data
+
+# SSH configuration
+ssh:
+  user: root
+
+# Logging
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
