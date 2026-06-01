@@ -13,6 +13,7 @@ RUN bun install
 COPY src ./src
 COPY frontend ./frontend
 COPY index.ts .
+COPY index.html .
 
 # Final stage
 FROM oven/bun:latest
@@ -25,6 +26,7 @@ COPY --from=builder /build/src ./src
 COPY --from=builder /build/frontend ./frontend
 COPY --from=builder /build/index.ts .
 COPY --from=builder /build/package.json .
+COPY --from=builder /build/index.html .
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data
