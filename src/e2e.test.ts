@@ -99,6 +99,24 @@ test("create key, list it, use it, and revoke it", async () => {
   const keys = await listRes.json()
   expect(keys.some((k: any) => k.id === newKey.id)).toBe(true)
 
+  // Use it for a chat completion
+  const chatRes = await fetch(`${BASE_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${newKey.key}`,
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      privacy: 1.0,
+      messages: [{ role: "user", content: "Reply with exactly: pong" }],
+    }),
+  })
+  expect(chatRes.status).toBe(200)
+  expect(chatRes.headers.get("content-type")).toBe("text/event-stream")
+  const chatText = await chatRes.text()
+  expect(chatText).toContain("[DONE]")
+
   // Revoke
   const revokeRes = await authed("/v1/keys/revoke", {
     method: "POST",
@@ -107,9 +125,18 @@ test("create key, list it, use it, and revoke it", async () => {
   })
   expect(revokeRes.status).toBe(200)
 
-  // Verify revoked
-  const listRes2 = await authed("/v1/keys")
-  const keys2 = await listRes2.json()
-  const revoked = keys2.find((k: any) => k.id === newKey.id)
-  expect(revoked.revokedAt).not.toBeNull()
-}, 15000)
+  // Verify revoked key can't be used
+  const chatRes2 = await fetch(`${BASE_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${newKey.key}`,
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      privacy: 1.0,
+      messages: [{ role: "user", content: "ping" }],
+    }),
+  })
+  expect(chatRes2.status).toBe(401)
+}, 30000)

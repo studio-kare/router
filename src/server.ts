@@ -252,15 +252,23 @@ export const handlePublicChatCompletions = (
       )
     }
 
-    // Validate public API key
+    // Validate API key (public admin key or per-user key)
     const authHeader = req.headers.get("authorization")
     if (!authHeader?.startsWith("Bearer ")) {
       return unauthorized("Missing or invalid authorization header", "/v1/chat/completions (public)")
     }
 
     const apiKey = authHeader.slice(7)
-    if (apiKey !== publicConfig.publicApiKey) {
-      return unauthorized("Invalid API key", "/v1/chat/completions (public)")
+    const isAdminKey = apiKey === publicConfig.publicApiKey
+
+    if (!isAdminKey) {
+      // Try per-user key from database
+      const keyService = yield* KeyService
+      const validKey = yield* keyService.validateKey(apiKey)
+      if (!validKey) {
+        return unauthorized("Invalid API key", "/v1/chat/completions (public)")
+      }
+      yield* keyService.recordUsage(apiKey)
     }
 
     // Check IP-based rate limiting
