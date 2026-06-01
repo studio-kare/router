@@ -13,8 +13,13 @@ export interface WebhookEvent {
   action: string
   issue_number: number
   issue_title: string
+  issue_body: string | null
+  issue_state: string | null
   comment_body: string | null
   author: string
+  author_avatar: string | null
+  labels: string | null
+  assignees: string | null
   url: string
   created_at: number
 }
@@ -46,15 +51,34 @@ export class WebhookService {
         action TEXT NOT NULL,
         issue_number INTEGER NOT NULL,
         issue_title TEXT NOT NULL,
+        issue_body TEXT,
+        issue_state TEXT,
         comment_body TEXT,
         author TEXT NOT NULL,
+        author_avatar TEXT,
+        labels TEXT,
+        assignees TEXT,
         url TEXT NOT NULL,
+        raw_payload TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
 
       CREATE INDEX IF NOT EXISTS idx_webhook_events_repo_time
         ON webhook_events(repo, created_at DESC);
     `)
+
+    // Migration: add new columns if missing
+    const migrations = [
+      "ALTER TABLE webhook_events ADD COLUMN issue_body TEXT",
+      "ALTER TABLE webhook_events ADD COLUMN issue_state TEXT",
+      "ALTER TABLE webhook_events ADD COLUMN author_avatar TEXT",
+      "ALTER TABLE webhook_events ADD COLUMN labels TEXT",
+      "ALTER TABLE webhook_events ADD COLUMN assignees TEXT",
+      "ALTER TABLE webhook_events ADD COLUMN raw_payload TEXT DEFAULT '{}'",
+    ]
+    for (const sql of migrations) {
+      try { this.db.exec(sql) } catch { /* column exists */ }
+    }
   }
 
   async setupWebhook(
@@ -146,10 +170,15 @@ export class WebhookService {
     const action = payload.action || "unknown"
     const comment = payload.comment
 
+    const author = comment?.user?.login || payload.sender?.login || "unknown"
+    const authorAvatar = comment?.user?.avatar_url || payload.sender?.avatar_url || null
+    const labels = issue.labels ? JSON.stringify(issue.labels.map((l: any) => l.name)) : null
+    const assignees = issue.assignees ? JSON.stringify(issue.assignees.map((a: any) => a.login)) : null
+
     try {
       this.db.prepare(`
-        INSERT INTO webhook_events (id, delivery_id, repo, event_type, action, issue_number, issue_title, comment_body, author, url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO webhook_events (id, delivery_id, repo, event_type, action, issue_number, issue_title, issue_body, issue_state, comment_body, author, author_avatar, labels, assignees, url, raw_payload, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         deliveryId,
@@ -158,9 +187,15 @@ export class WebhookService {
         action,
         issue.number,
         issue.title,
-        comment ? (comment.body || "").slice(0, 500) : null,
-        (comment?.user?.login || payload.sender?.login || "unknown"),
+        issue.body || null,
+        issue.state || null,
+        comment ? (comment.body || "") : null,
+        author,
+        authorAvatar,
+        labels,
+        assignees,
         comment?.html_url || issue.html_url,
+        JSON.stringify(payload),
         Date.now()
       )
       return true
