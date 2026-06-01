@@ -547,6 +547,41 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         }
         return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json" } })
       }
+      if (req.method === "GET" && url.pathname === "/v1/github/repos") {
+        const user = getSessionUser(req, authService)
+        if (!user) return unauthorized("Not authenticated", url.pathname)
+
+        const accessToken = authService.getAccessToken(user.github_id)
+        if (!accessToken) {
+          return new Response(
+            JSON.stringify({ error: "No access token. Please re-login.", reauth: true }),
+            { status: 401, headers: { "Content-Type": "application/json" } }
+          )
+        }
+
+        const ghRes = await fetch("https://api.github.com/user/repos?per_page=100&sort=updated", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: "application/vnd.github+json",
+          },
+        })
+        if (!ghRes.ok) {
+          return new Response(
+            JSON.stringify({ error: "Failed to fetch repos from GitHub" }),
+            { status: 502, headers: { "Content-Type": "application/json" } }
+          )
+        }
+        const ghRepos = (await ghRes.json()) as Array<{ full_name: string; private: boolean }>
+        const watched = new Set(webhookService.getWatchedRepos().map((r) => r.repo_full_name))
+        const result = ghRepos.map((r) => ({
+          full_name: r.full_name,
+          private: r.private,
+          watching: watched.has(r.full_name),
+        }))
+        return new Response(JSON.stringify(result), {
+          headers: { "Content-Type": "application/json" },
+        })
+      }
       if (req.method === "GET" && url.pathname === "/v1/webhooks/repos") {
         const user = getSessionUser(req, authService)
         if (!user && !isAuthorized(req, authService, publicApiKey)) {

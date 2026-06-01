@@ -1072,6 +1072,86 @@ export function injectStyles() {
   .event-author {
     font-weight: 600;
   }
+
+  .setup-btn-small {
+    padding: 5px 12px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .setup-btn-small:hover {
+    background: #2563eb;
+  }
+
+  .repo-picker {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .repo-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .repo-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 13px;
+  }
+
+  .repo-item:last-child {
+    border-bottom: none;
+  }
+
+  .repo-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #111827;
+    font-weight: 500;
+  }
+
+  .repo-private {
+    padding: 1px 5px;
+    background: #f3f4f6;
+    color: #6b7280;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .watch-btn {
+    padding: 4px 10px;
+    background: #f0f9ff;
+    color: #3b82f6;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .watch-btn:hover:not(:disabled) {
+    background: #dbeafe;
+  }
+
+  .watch-btn:disabled {
+    opacity: 0.5;
+  }
 `
   document.head.appendChild(style)
 }

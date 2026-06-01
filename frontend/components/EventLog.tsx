@@ -18,6 +18,12 @@ interface WatchedRepo {
   created_at: number
 }
 
+interface GithubRepo {
+  full_name: string
+  private: boolean
+  watching: boolean
+}
+
 function timeAgo(ts: number): string {
   const seconds = Math.floor((Date.now() - ts) / 1000)
   if (seconds < 60) return `${seconds}s ago`
@@ -36,16 +42,18 @@ function badgeClass(action: string): string {
 }
 
 export function EventLog() {
-  const [repos, setRepos] = useState<WatchedRepo[]>([])
+  const [watchedRepos, setWatchedRepos] = useState<WatchedRepo[]>([])
   const [events, setEvents] = useState<WebhookEvent[]>([])
+  const [availableRepos, setAvailableRepos] = useState<GithubRepo[] | null>(null)
   const [loading, setLoading] = useState(true)
-  const [setting, setSetting] = useState(false)
+  const [settingUp, setSettingUp] = useState<string | null>(null)
+  const [showPicker, setShowPicker] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchRepos = () =>
+  const fetchWatched = () =>
     fetch("/v1/webhooks/repos")
       .then((r) => r.ok ? r.json() : [])
-      .then(setRepos)
+      .then(setWatchedRepos)
       .catch(() => {})
 
   const fetchEvents = () =>
@@ -54,14 +62,24 @@ export function EventLog() {
       .then(setEvents)
       .catch(() => {})
 
+  const fetchAvailableRepos = async () => {
+    const res = await fetch("/v1/github/repos")
+    if (res.ok) {
+      setAvailableRepos(await res.json())
+    } else {
+      const data = await res.json().catch(() => ({}))
+      if (data.reauth) window.location.href = "/auth/github"
+    }
+  }
+
   useEffect(() => {
-    Promise.all([fetchRepos(), fetchEvents()]).finally(() => setLoading(false))
+    Promise.all([fetchWatched(), fetchEvents()]).finally(() => setLoading(false))
     const interval = setInterval(fetchEvents, 10000)
     return () => clearInterval(interval)
   }, [])
 
   const setupRepo = async (repo: string) => {
-    setSetting(true)
+    setSettingUp(repo)
     setError(null)
     try {
       const res = await fetch("/v1/webhooks/setup", {
@@ -77,41 +95,83 @@ export function EventLog() {
         }
         setError(data.error || "Failed to set up webhook")
       } else {
-        await fetchRepos()
+        await fetchWatched()
+        if (availableRepos) {
+          setAvailableRepos(availableRepos.map((r) =>
+            r.full_name === repo ? { ...r, watching: true } : r
+          ))
+        }
       }
     } catch {
       setError("Network error")
     } finally {
-      setSetting(false)
+      setSettingUp(null)
     }
+  }
+
+  const openPicker = async () => {
+    setShowPicker(true)
+    if (!availableRepos) await fetchAvailableRepos()
   }
 
   if (loading) return <div className="event-log"><p className="event-loading">Loading...</p></div>
 
-  const isWatching = repos.some((r) => r.repo_full_name === "studio-kare/router")
+  const hasWatched = watchedRepos.length > 0
 
   return (
     <div className="event-log">
       <div className="event-log-header">
         <h2>Event Log</h2>
-        {isWatching && <span className="watching-badge">Watching</span>}
+        {hasWatched && (
+          <span className="watching-badge">{watchedRepos.length} repo{watchedRepos.length > 1 ? "s" : ""}</span>
+        )}
+        <div style={{ flex: 1 }} />
+        <button className="setup-btn-small" onClick={openPicker}>
+          {showPicker ? "Hide repos" : "+ Watch repo"}
+        </button>
       </div>
 
-      {!isWatching && (
-        <div className="setup-prompt">
-          <p>Watch issues and comments on a repository.</p>
-          <button
-            className="setup-btn"
-            onClick={() => setupRepo("studio-kare/router")}
-            disabled={setting}
-          >
-            {setting ? "Setting up..." : "Start watching studio-kare/router"}
-          </button>
+      {showPicker && (
+        <div className="repo-picker">
+          {!availableRepos ? (
+            <p className="event-loading">Loading repos...</p>
+          ) : (
+            <div className="repo-list">
+              {availableRepos.map((repo) => (
+                <div key={repo.full_name} className="repo-item">
+                  <div className="repo-name">
+                    {repo.full_name}
+                    {repo.private && <span className="repo-private">private</span>}
+                  </div>
+                  {repo.watching ? (
+                    <span className="watching-badge">Watching</span>
+                  ) : (
+                    <button
+                      className="watch-btn"
+                      onClick={() => setupRepo(repo.full_name)}
+                      disabled={settingUp === repo.full_name}
+                    >
+                      {settingUp === repo.full_name ? "..." : "Watch"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           {error && <p className="setup-error">{error}</p>}
         </div>
       )}
 
-      {isWatching && events.length === 0 && (
+      {!hasWatched && !showPicker && (
+        <div className="setup-prompt">
+          <p>Watch issues and comments on your repositories.</p>
+          <button className="setup-btn" onClick={openPicker}>
+            Choose repositories to watch
+          </button>
+        </div>
+      )}
+
+      {hasWatched && events.length === 0 && (
         <p className="event-empty">No events yet. Activity will appear here when issues or comments are created.</p>
       )}
 
