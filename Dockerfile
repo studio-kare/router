@@ -14,6 +14,7 @@ COPY src ./src
 COPY frontend ./frontend
 COPY index.ts .
 COPY index.html .
+COPY frontend.tsx .
 
 # Final stage
 FROM oven/bun:latest
@@ -27,6 +28,7 @@ COPY --from=builder /build/frontend ./frontend
 COPY --from=builder /build/index.ts .
 COPY --from=builder /build/package.json .
 COPY --from=builder /build/index.html .
+COPY --from=builder /build/frontend.tsx .
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data
