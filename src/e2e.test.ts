@@ -140,3 +140,51 @@ test("create key, list it, use it, and revoke it", async () => {
   })
   expect(chatRes2.status).toBe(401)
 }, 30000)
+
+test("admin metrics requires auth", async () => {
+  const res = await fetch(`${BASE_URL}/admin/metrics`)
+  expect(res.status).toBe(401)
+})
+
+test("admin metrics accessible with public key", async () => {
+  const res = await fetch(`${BASE_URL}/admin/metrics`, {
+    headers: { Authorization: `Bearer ${PUBLIC_API_KEY}` },
+  })
+  expect(res.status).toBe(200)
+  const body = await res.json()
+  expect(body.topIps).toBeDefined()
+  expect(body.poolTotal).toBeDefined()
+})
+
+test("admin ban and unban with public key", async () => {
+  const testIp = "192.0.2.1" // TEST-NET, safe to use
+
+  // Ban
+  const banRes = await fetch(`${BASE_URL}/admin/ban`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${PUBLIC_API_KEY}`,
+    },
+    body: JSON.stringify({ ip: testIp, reason: "e2e test" }),
+  })
+  expect(banRes.status).toBe(200)
+
+  // Verify banned in metrics
+  const metricsRes = await fetch(`${BASE_URL}/admin/metrics`, {
+    headers: { Authorization: `Bearer ${PUBLIC_API_KEY}` },
+  })
+  const metrics = await metricsRes.json()
+  expect(metrics.banned.some((b: any) => b.ipAddress === testIp)).toBe(true)
+
+  // Unban
+  const unbanRes = await fetch(`${BASE_URL}/admin/unban`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${PUBLIC_API_KEY}`,
+    },
+    body: JSON.stringify({ ip: testIp }),
+  })
+  expect(unbanRes.status).toBe(200)
+})

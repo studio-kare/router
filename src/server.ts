@@ -24,10 +24,10 @@ import {
   parseStateCookie,
 } from "./auth"
 
-const isAuthorized = (req: Request, authService: AuthService, publicApiKey?: string): boolean => {
+const isAuthorized = (req: Request, authService: AuthService, ...validTokens: (string | undefined)[]): boolean => {
   if (getSessionUser(req, authService)) return true
   const bearer = req.headers.get("authorization")?.slice(7)
-  if (publicApiKey && bearer && bearer === publicApiKey) return true
+  if (bearer && validTokens.some((t) => t && bearer === t)) return true
   return false
 }
 
@@ -501,7 +501,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
           )
         }
         if (req.method === "GET" && url.pathname === "/admin/metrics") {
-          if (!isAuthorized(req, authService, deployment.adminToken)) {
+          if (!isAuthorized(req, authService, deployment.adminToken, publicApiKey)) {
             return unauthorized("Not authorized", url.pathname)
           }
           const topIps = publicMetrics.getTopIpsByUsage(20, 24)
@@ -518,7 +518,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
           )
         }
         if (req.method === "POST" && url.pathname === "/admin/ban") {
-          if (!isAuthorized(req, authService, deployment.adminToken)) {
+          if (!isAuthorized(req, authService, deployment.adminToken, publicApiKey)) {
             return unauthorized("Not authorized", url.pathname)
           }
           try {
@@ -532,7 +532,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
           }
         }
         if (req.method === "POST" && url.pathname === "/admin/unban") {
-          if (!isAuthorized(req, authService, deployment.adminToken)) {
+          if (!isAuthorized(req, authService, deployment.adminToken, publicApiKey)) {
             return unauthorized("Not authorized", url.pathname)
           }
           try {
