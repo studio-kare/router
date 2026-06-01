@@ -1,17 +1,35 @@
 service: farmer
-image: studiokare/farmer
+image: studio-kare/farmer
 
 servers:
   web:
     hosts:
-      - 1.2.3.4  # Change to your server IP
-    port: 3000
+      - 163.172.149.152
 
 registry:
-  server: docker.io
-  username: studiokare  # Change to your Docker Hub username
+  server: rg.fr-par.scw.cloud
+  username:
+    - KAMAL_REGISTRY_USERNAME
   password:
-    - DOCKER_REGISTRY_PASSWORD
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: root
+  keys:
+    - ./dev-instance-key
+
+builder:
+  remote: ssh://root@163.172.149.152
+  arch: amd64
+
+proxy:
+  ssl: true
+  host: router.studiokare.nl
+  app_port: 3000
+  healthcheck:
+    path: /health
+    interval: 3
+    timeout: 3
 
 env:
   clear:
@@ -28,30 +46,3 @@ env:
 
 volumes:
   - "farmer-data:/app/data"
-
-healthcheck:
-  path: /health
-  interval: 10s
-  timeout: 5s
-
-accessories:
-  db:
-    image: busybox
-    roles:
-      - web
-    directories:
-      - farmer-data:/app/data
-    env:
-      clear:
-        VOLUME_PATH: /app/data
-
-# SSH configuration
-ssh:
-  user: root
-
-# Logging
-logging:
-  driver: json-file
-  options:
-    max-size: "10m"
-    max-file: "3"
