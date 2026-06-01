@@ -865,6 +865,213 @@ export function injectStyles() {
   .github-btn:hover {
     background: #1b1f23;
   }
+
+  .main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .view-toggle {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+    flex-shrink: 0;
+  }
+
+  .view-tab {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  .view-tab:hover {
+    color: #111827;
+  }
+
+  .view-tab.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+  }
+
+  .details-column-inline {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+    background: white;
+  }
+
+  .event-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+    background: #f5f5f5;
+  }
+
+  .event-log-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .event-log-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .watching-badge {
+    padding: 2px 8px;
+    background: #d1fae5;
+    color: #059669;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .setup-prompt {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+  }
+
+  .setup-prompt p {
+    color: #6b7280;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+
+  .setup-btn {
+    padding: 10px 20px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .setup-btn:hover:not(:disabled) {
+    background: #2563eb;
+  }
+
+  .setup-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .setup-error {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  .event-empty {
+    color: #9ca3af;
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .event-loading {
+    color: #9ca3af;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .event-card {
+    display: block;
+    background: white;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid #e5e7eb;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s;
+  }
+
+  .event-card:hover {
+    border-left-color: #3b82f6;
+  }
+
+  .event-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .event-badge {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .event-badge.opened {
+    background: #d1fae5;
+    color: #059669;
+  }
+
+  .event-badge.closed {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  .event-badge.commented {
+    background: #dbeafe;
+    color: #2563eb;
+  }
+
+  .event-time {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  .event-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+
+  .event-comment {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .event-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  .event-author {
+    font-weight: 600;
+  }
 `
   document.head.appendChild(style)
 }

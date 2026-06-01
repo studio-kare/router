@@ -37,6 +37,7 @@ export class AuthService {
         github_id INTEGER PRIMARY KEY,
         username TEXT NOT NULL,
         avatar_url TEXT,
+        access_token TEXT,
         created_at INTEGER NOT NULL,
         last_login INTEGER NOT NULL
       );
@@ -51,6 +52,13 @@ export class AuthService {
 
       CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
     `)
+
+    // Migration: add access_token column if missing
+    try {
+      this.db.exec("ALTER TABLE github_users ADD COLUMN access_token TEXT")
+    } catch {
+      // Column already exists
+    }
   }
 
   getAuthorizeUrl(): { url: string; state: string } {
@@ -58,7 +66,7 @@ export class AuthService {
     const params = new URLSearchParams({
       client_id: this.clientId,
       redirect_uri: this.callbackUrl,
-      scope: "read:user",
+      scope: "read:user admin:repo_hook repo",
       state,
     })
     return {
@@ -114,13 +122,14 @@ export class AuthService {
 
     // Upsert user
     this.db.prepare(`
-      INSERT INTO github_users (github_id, username, avatar_url, created_at, last_login)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO github_users (github_id, username, avatar_url, access_token, created_at, last_login)
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(github_id) DO UPDATE SET
         username = excluded.username,
         avatar_url = excluded.avatar_url,
+        access_token = excluded.access_token,
         last_login = excluded.last_login
-    `).run(userData.id, userData.login, userData.avatar_url, now, now)
+    `).run(userData.id, userData.login, userData.avatar_url, tokenData.access_token, now, now)
 
     // Create session (7 days)
     const sessionToken = generateSessionToken()
@@ -155,6 +164,13 @@ export class AuthService {
 
   destroySession(token: string): void {
     this.db.prepare("DELETE FROM sessions WHERE token = ?").run(token)
+  }
+
+  getAccessToken(githubId: number): string | null {
+    const row = this.db.prepare(
+      "SELECT access_token FROM github_users WHERE github_id = ?"
+    ).get(githubId) as { access_token: string | null } | undefined
+    return row?.access_token || null
   }
 
   cleanExpiredSessions(): void {

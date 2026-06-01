@@ -23,6 +23,7 @@ import {
   stateCookie,
   parseStateCookie,
 } from "./auth"
+import { WebhookService, verifyWebhookSignature } from "./webhooks"
 
 const isAuthorized = (req: Request, authService: AuthService, ...validTokens: (string | undefined)[]): boolean => {
   if (getSessionUser(req, authService)) return true
@@ -388,6 +389,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
   const isSecure = process.env.DEPLOYMENT !== "development"
   const baseUrl = process.env.BASE_URL || (isSecure ? "https://router.studiokare.nl" : `http://localhost:${port}`)
   const publicApiKey = process.env.PUBLIC_API_KEY || ""
+  const webhookService = new WebhookService("./farmer.db")
   const authService = new AuthService({
     dbPath: "./farmer.db",
     clientId: githubClientId,
@@ -464,6 +466,95 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
             Location: "/",
             "Set-Cookie": clearSessionCookie(isSecure),
           },
+        })
+      }
+
+      // --- Webhook routes ---
+      if (req.method === "POST" && url.pathname === "/webhooks/github") {
+        const body = await req.text()
+        const signature = req.headers.get("x-hub-signature-256") || ""
+        const eventType = req.headers.get("x-github-event") || ""
+        const deliveryId = req.headers.get("x-github-delivery") || ""
+
+        if (eventType === "ping") {
+          return new Response(JSON.stringify({ ok: "pong" }), {
+            headers: { "Content-Type": "application/json" },
+          })
+        }
+
+        let payload: any
+        try { payload = JSON.parse(body) } catch {
+          return new Response("Invalid JSON", { status: 400 })
+        }
+
+        const repo = payload.repository?.full_name
+        if (!repo) return new Response("Missing repository", { status: 400 })
+
+        const secret = webhookService.getWebhookSecret(repo)
+        if (!secret) return new Response("Unknown repo", { status: 404 })
+
+        const valid = await verifyWebhookSignature(body, signature, secret)
+        if (!valid) {
+          console.log(`[webhook] Invalid signature for ${repo}`)
+          return new Response("Invalid signature", { status: 401 })
+        }
+
+        if (eventType === "issues" || eventType === "issue_comment") {
+          webhookService.recordEvent(deliveryId, repo, eventType, payload)
+          console.log(`[webhook] ${eventType}:${payload.action} on ${repo}#${payload.issue?.number}`)
+        }
+
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      if (req.method === "GET" && url.pathname === "/v1/webhook-events") {
+        const user = getSessionUser(req, authService)
+        if (!user && !isAuthorized(req, authService, publicApiKey)) {
+          return unauthorized("Not authenticated", url.pathname)
+        }
+        const repo = url.searchParams.get("repo") || undefined
+        const limit = parseInt(url.searchParams.get("limit") || "50")
+        const before = url.searchParams.get("before") ? parseInt(url.searchParams.get("before")!) : undefined
+        const events = webhookService.getEvents(repo, limit, before)
+        return new Response(JSON.stringify(events), {
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      if (req.method === "POST" && url.pathname === "/v1/webhooks/setup") {
+        const user = getSessionUser(req, authService)
+        if (!user) return unauthorized("Not authenticated", url.pathname)
+
+        let body: any
+        try { body = await req.json() } catch {
+          return new Response("Invalid JSON", { status: 400 })
+        }
+
+        const repo = body.repo
+        if (!repo) return new Response(JSON.stringify({ error: "Missing repo" }), { status: 400 })
+
+        const accessToken = authService.getAccessToken(user.github_id)
+        if (!accessToken) {
+          return new Response(
+            JSON.stringify({ error: "No access token. Please re-login.", reauth: true }),
+            { status: 401, headers: { "Content-Type": "application/json" } }
+          )
+        }
+
+        const result = await webhookService.setupWebhook(repo, accessToken, `${baseUrl}/webhooks/github`, user.github_id)
+        if ("error" in result) {
+          return new Response(JSON.stringify(result), { status: 400, headers: { "Content-Type": "application/json" } })
+        }
+        return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json" } })
+      }
+      if (req.method === "GET" && url.pathname === "/v1/webhooks/repos") {
+        const user = getSessionUser(req, authService)
+        if (!user && !isAuthorized(req, authService, publicApiKey)) {
+          return unauthorized("Not authenticated", url.pathname)
+        }
+        const repos = webhookService.getWatchedRepos()
+        return new Response(JSON.stringify(repos), {
+          headers: { "Content-Type": "application/json" },
         })
       }
 
