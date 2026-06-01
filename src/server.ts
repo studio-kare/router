@@ -24,6 +24,14 @@ import {
   parseStateCookie,
 } from "./auth"
 
+const unauthorized = (reason: string, pathname: string): Response => {
+  console.log(`[401] ${pathname}: ${reason}`)
+  return new Response(
+    JSON.stringify({ error: reason }),
+    { status: 401, headers: { "Content-Type": "application/json" } }
+  )
+}
+
 // Val.town adapter service (from index.ts)
 class ValTownAdapterService extends Context.Service<ValTownAdapterService, InfraAdapter>()(
   "ValTownAdapterService"
@@ -97,10 +105,7 @@ export const handleChatCompletions = (
     // Validate API key
     const authHeader = req.headers.get("authorization")
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Missing or invalid authorization header" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      )
+      return unauthorized("Missing or invalid authorization header", "/v1/chat/completions")
     }
 
     const apiKey = authHeader.slice(7)
@@ -108,10 +113,7 @@ export const handleChatCompletions = (
     const validKey = yield* keyService.validateKey(apiKey)
 
     if (!validKey) {
-      return new Response(
-        JSON.stringify({ error: "Invalid API key" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      )
+      return unauthorized("Invalid API key", "/v1/chat/completions")
     }
 
     // Check rate limits
@@ -246,18 +248,12 @@ export const handlePublicChatCompletions = (
     // Validate public API key
     const authHeader = req.headers.get("authorization")
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Missing or invalid authorization header" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      )
+      return unauthorized("Missing or invalid authorization header", "/v1/chat/completions (public)")
     }
 
     const apiKey = authHeader.slice(7)
     if (apiKey !== publicConfig.publicApiKey) {
-      return new Response(
-        JSON.stringify({ error: "Invalid API key" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      )
+      return unauthorized("Invalid API key", "/v1/chat/completions (public)")
     }
 
     // Check IP-based rate limiting
@@ -432,10 +428,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       if (req.method === "GET" && url.pathname === "/auth/me") {
         const user = getSessionUser(req, authService)
         if (!user) {
-          return new Response(JSON.stringify({ error: "Not authenticated" }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          })
+          return unauthorized("No valid session", "/auth/me")
         }
         return new Response(
           JSON.stringify({
@@ -494,7 +487,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         if (req.method === "GET" && url.pathname === "/admin/metrics") {
           const adminToken = req.headers.get("Authorization")?.slice(7)
           if (!adminToken || adminToken !== deployment.adminToken) {
-            return new Response("Unauthorized", { status: 401 })
+            return unauthorized("Invalid admin token", url.pathname)
           }
           const topIps = publicMetrics.getTopIpsByUsage(20, 24)
           const banned = banManager.getBannedIps(50)
@@ -512,7 +505,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         if (req.method === "POST" && url.pathname === "/admin/ban") {
           const adminToken = req.headers.get("Authorization")?.slice(7)
           if (!adminToken || adminToken !== deployment.adminToken) {
-            return new Response("Unauthorized", { status: 401 })
+            return unauthorized("Invalid admin token", url.pathname)
           }
           try {
             const { ip, reason } = await req.json() as { ip: string; reason: string }
@@ -527,7 +520,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         if (req.method === "POST" && url.pathname === "/admin/unban") {
           const adminToken = req.headers.get("Authorization")?.slice(7)
           if (!adminToken || adminToken !== deployment.adminToken) {
-            return new Response("Unauthorized", { status: 401 })
+            return unauthorized("Invalid admin token", url.pathname)
           }
           try {
             const { ip } = await req.json() as { ip: string }
@@ -620,7 +613,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/generate") {
         if (!getSessionUser(req, authService)) {
-          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+          return unauthorized("Not authenticated", url.pathname)
         }
         return runtime.runPromise(
           Effect.gen(function*() {
@@ -635,7 +628,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") {
         if (!getSessionUser(req, authService)) {
-          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+          return unauthorized("Not authenticated", url.pathname)
         }
         return runtime.runPromise(
           Effect.gen(function*() {
@@ -657,7 +650,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/revoke") {
         if (!getSessionUser(req, authService)) {
-          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+          return unauthorized("Not authenticated", url.pathname)
         }
         try {
           const body = (await req.json()) as { key?: string }
@@ -685,7 +678,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/clear") {
         if (!getSessionUser(req, authService)) {
-          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+          return unauthorized("Not authenticated", url.pathname)
         }
         return runtime.runPromise(
           Effect.gen(function*() {
@@ -700,10 +693,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       if (req.method === "GET" && url.pathname === "/v1/quota") {
         const authHeader = req.headers.get("authorization")
         if (!authHeader?.startsWith("Bearer ")) {
-          return new Response(
-            JSON.stringify({ error: "Missing or invalid authorization header" }),
-            { status: 401, headers: { "Content-Type": "application/json" } }
-          )
+          return unauthorized("Missing or invalid authorization header", "/v1/quota")
         }
         const apiKey = authHeader.slice(7)
         return runtime.runPromise(
@@ -718,7 +708,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
       }
       if (req.method === "GET" && url.pathname.match(/^\/v1\/keys\/[^/]+\/ledger$/)) {
         if (!getSessionUser(req, authService)) {
-          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+          return unauthorized("Not authenticated", url.pathname)
         }
         const keyId = url.pathname.split("/")[3]
         return runtime.runPromise(
