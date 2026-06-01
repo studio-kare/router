@@ -35,6 +35,7 @@ env:
   clear:
     DEPLOYMENT: public
     PUBLIC_DAILY_POOL: "10000000"
+    ALLOWED_GITHUB_USERS: "oguzhanogreden"
   secret:
     - PUBLIC_API_KEY
     - PUBLIC_ADMIN_TOKEN
@@ -43,6 +44,8 @@ env:
     - OPENROUTER_API_KEY
     - AZURE_OPENAI_API_KEY
     - AZURE_OPENAI_ENDPOINT
+    - GITHUB_CLIENT_ID
+    - GITHUB_CLIENT_SECRET
 
 volumes:
   - "farmer-data:/app/data"

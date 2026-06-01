@@ -1,11 +1,31 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import type { ApiKeyInfo } from "../types"
 import { DeploymentSidebar } from "./DeploymentSidebar"
 import { Placeholder } from "./Placeholder"
 import { UsageLedger } from "./UsageLedger"
+import { LoginPage } from "./LoginPage"
+
+interface AuthUser {
+  username: string
+  avatar_url: string | null
+  github_id: number
+}
 
 export function App() {
   const [selectedKey, setSelectedKey] = useState<ApiKeyInfo | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setAuthLoading(false))
+  }, [])
+
+  if (authLoading) return null
+  if (!user) return <LoginPage />
 
   return (
     <div className="container">

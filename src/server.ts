@@ -15,6 +15,14 @@ import { getPlaceholderHtml } from "./placeholder"
 import type { InfraAdapter } from "./infra-adapters/base"
 import { createPublicMetrics } from "./public-metrics"
 import { createBanManager } from "./public-bans"
+import {
+  AuthService,
+  getSessionUser,
+  sessionCookie,
+  clearSessionCookie,
+  stateCookie,
+  parseStateCookie,
+} from "./auth"
 
 // Val.town adapter service (from index.ts)
 class ValTownAdapterService extends Context.Service<ValTownAdapterService, InfraAdapter>()(
@@ -362,6 +370,20 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
   const publicMetrics = createPublicMetrics("./farmer.db")
   const banManager = createBanManager("./farmer.db")
 
+  // Initialize auth service
+  const githubClientId = process.env.GITHUB_CLIENT_ID || ""
+  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET || ""
+  const allowedUsers = (process.env.ALLOWED_GITHUB_USERS || "").split(",").filter(Boolean)
+  const isSecure = process.env.DEPLOYMENT !== "development"
+  const baseUrl = process.env.BASE_URL || (isSecure ? "https://router.studiokare.nl" : `http://localhost:${port}`)
+  const authService = new AuthService({
+    dbPath: "./farmer.db",
+    clientId: githubClientId,
+    clientSecret: githubClientSecret,
+    allowedUsers,
+    callbackUrl: `${baseUrl}/auth/github/callback`,
+  })
+
   return Bun.serve({
     port,
     routes: {
@@ -373,6 +395,68 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
     },
     async fetch(req) {
       const url = new URL(req.url)
+
+      // --- Auth routes ---
+      if (req.method === "GET" && url.pathname === "/auth/github") {
+        const { url: authorizeUrl, state } = authService.getAuthorizeUrl()
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: authorizeUrl,
+            "Set-Cookie": stateCookie(state, isSecure),
+          },
+        })
+      }
+      if (req.method === "GET" && url.pathname === "/auth/github/callback") {
+        const code = url.searchParams.get("code")
+        const state = url.searchParams.get("state")
+        const savedState = parseStateCookie(req)
+
+        if (!code || !state || state !== savedState) {
+          return new Response("Invalid OAuth state", { status: 403 })
+        }
+
+        const result = await authService.handleCallback(code)
+        if ("error" in result) {
+          return new Response(result.error, { status: 403 })
+        }
+
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: "/",
+            "Set-Cookie": sessionCookie(result.sessionToken, isSecure),
+          },
+        })
+      }
+      if (req.method === "GET" && url.pathname === "/auth/me") {
+        const user = getSessionUser(req, authService)
+        if (!user) {
+          return new Response(JSON.stringify({ error: "Not authenticated" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          })
+        }
+        return new Response(
+          JSON.stringify({
+            username: user.username,
+            avatar_url: user.avatar_url,
+            github_id: user.github_id,
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        )
+      }
+      if (req.method === "POST" && url.pathname === "/auth/logout") {
+        const token = req.headers.get("cookie")?.match(/session=([^;]+)/)?.[1]
+        if (token) authService.destroySession(token)
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: "/",
+            "Set-Cookie": clearSessionCookie(isSecure),
+          },
+        })
+      }
 
       // Check deployment mode
       const deployment = await runtime.runPromise(
@@ -535,6 +619,9 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         return runtime.runPromise(handleChatCompletions(req))
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/generate") {
+        if (!getSessionUser(req, authService)) {
+          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+        }
         return runtime.runPromise(
           Effect.gen(function*() {
             const keyService = yield* KeyService
@@ -547,6 +634,9 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         )
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") {
+        if (!getSessionUser(req, authService)) {
+          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+        }
         return runtime.runPromise(
           Effect.gen(function*() {
             const keyService = yield* KeyService
@@ -566,6 +656,9 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         )
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/revoke") {
+        if (!getSessionUser(req, authService)) {
+          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+        }
         try {
           const body = (await req.json()) as { key?: string }
           if (!body.key) {
@@ -591,6 +684,9 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         }
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/clear") {
+        if (!getSessionUser(req, authService)) {
+          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+        }
         return runtime.runPromise(
           Effect.gen(function*() {
             const keyService = yield* KeyService
@@ -621,6 +717,9 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         )
       }
       if (req.method === "GET" && url.pathname.match(/^\/v1\/keys\/[^/]+\/ledger$/)) {
+        if (!getSessionUser(req, authService)) {
+          return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { "Content-Type": "application/json" } })
+        }
         const keyId = url.pathname.split("/")[3]
         return runtime.runPromise(
           Effect.gen(function*() {

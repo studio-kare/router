@@ -817,6 +817,54 @@ export function injectStyles() {
     flex: 1;
     word-break: break-all;
   }
+
+  .login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: #f5f5f5;
+  }
+
+  .login-card {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    width: 100%;
+  }
+
+  .login-card h1 {
+    font-size: 24px;
+    color: #111827;
+    margin-bottom: 8px;
+  }
+
+  .login-card p {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .github-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: #24292f;
+    color: white;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+
+  .github-btn:hover {
+    background: #1b1f23;
+  }
 `
   document.head.appendChild(style)
 }
