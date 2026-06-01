@@ -54,7 +54,7 @@ export function Placeholder() {
   }
 
   const buildCurl = (key: string) =>
-    `curl -X POST http://localhost:3000/v1/chat/completions \\
+    `curl -X POST ${window.location.origin}/v1/chat/completions \\
   -H "Authorization: Bearer ${key}" \\
   -H "Content-Type: application/json" \\
   -d '{
