@@ -501,9 +501,8 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
           )
         }
         if (req.method === "GET" && url.pathname === "/admin/metrics") {
-          const adminToken = req.headers.get("Authorization")?.slice(7)
-          if (!adminToken || adminToken !== deployment.adminToken) {
-            return unauthorized("Invalid admin token", url.pathname)
+          if (!isAuthorized(req, authService, deployment.adminToken)) {
+            return unauthorized("Not authorized", url.pathname)
           }
           const topIps = publicMetrics.getTopIpsByUsage(20, 24)
           const banned = banManager.getBannedIps(50)
@@ -519,9 +518,8 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
           )
         }
         if (req.method === "POST" && url.pathname === "/admin/ban") {
-          const adminToken = req.headers.get("Authorization")?.slice(7)
-          if (!adminToken || adminToken !== deployment.adminToken) {
-            return unauthorized("Invalid admin token", url.pathname)
+          if (!isAuthorized(req, authService, deployment.adminToken)) {
+            return unauthorized("Not authorized", url.pathname)
           }
           try {
             const { ip, reason } = await req.json() as { ip: string; reason: string }
@@ -534,9 +532,8 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
           }
         }
         if (req.method === "POST" && url.pathname === "/admin/unban") {
-          const adminToken = req.headers.get("Authorization")?.slice(7)
-          if (!adminToken || adminToken !== deployment.adminToken) {
-            return unauthorized("Invalid admin token", url.pathname)
+          if (!isAuthorized(req, authService, deployment.adminToken)) {
+            return unauthorized("Not authorized", url.pathname)
           }
           try {
             const { ip } = await req.json() as { ip: string }
