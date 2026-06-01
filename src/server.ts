@@ -24,6 +24,13 @@ import {
   parseStateCookie,
 } from "./auth"
 
+const isAuthorized = (req: Request, authService: AuthService, publicApiKey?: string): boolean => {
+  if (getSessionUser(req, authService)) return true
+  const bearer = req.headers.get("authorization")?.slice(7)
+  if (publicApiKey && bearer && bearer === publicApiKey) return true
+  return false
+}
+
 const unauthorized = (reason: string, pathname: string): Response => {
   console.log(`[401] ${pathname}: ${reason}`)
   return new Response(
@@ -372,6 +379,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
   const allowedUsers = (process.env.ALLOWED_GITHUB_USERS || "").split(",").filter(Boolean)
   const isSecure = process.env.DEPLOYMENT !== "development"
   const baseUrl = process.env.BASE_URL || (isSecure ? "https://router.studiokare.nl" : `http://localhost:${port}`)
+  const publicApiKey = process.env.PUBLIC_API_KEY || ""
   const authService = new AuthService({
     dbPath: "./farmer.db",
     clientId: githubClientId,
@@ -612,7 +620,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         return runtime.runPromise(handleChatCompletions(req))
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/generate") {
-        if (!getSessionUser(req, authService)) {
+        if (!isAuthorized(req, authService, publicApiKey)) {
           return unauthorized("Not authenticated", url.pathname)
         }
         return runtime.runPromise(
@@ -627,7 +635,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         )
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") {
-        if (!getSessionUser(req, authService)) {
+        if (!isAuthorized(req, authService, publicApiKey)) {
           return unauthorized("Not authenticated", url.pathname)
         }
         return runtime.runPromise(
@@ -649,7 +657,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         )
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/revoke") {
-        if (!getSessionUser(req, authService)) {
+        if (!isAuthorized(req, authService, publicApiKey)) {
           return unauthorized("Not authenticated", url.pathname)
         }
         try {
@@ -677,7 +685,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         }
       }
       if (req.method === "POST" && url.pathname === "/v1/keys/clear") {
-        if (!getSessionUser(req, authService)) {
+        if (!isAuthorized(req, authService, publicApiKey)) {
           return unauthorized("Not authenticated", url.pathname)
         }
         return runtime.runPromise(
@@ -707,7 +715,7 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         )
       }
       if (req.method === "GET" && url.pathname.match(/^\/v1\/keys\/[^/]+\/ledger$/)) {
-        if (!getSessionUser(req, authService)) {
+        if (!isAuthorized(req, authService, publicApiKey)) {
           return unauthorized("Not authenticated", url.pathname)
         }
         const keyId = url.pathname.split("/")[3]

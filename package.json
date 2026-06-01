@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --hot ./index.ts"
+    "dev": "bun --hot ./index.ts",
+    "test:e2e": "bun test src/e2e.test.ts",
+    "test:e2e:remote": "gh workflow run e2e.yml -R studio-kare/router"
   },
   "devDependencies": {
     "@types/bun": "latest",

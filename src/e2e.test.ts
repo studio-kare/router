@@ -71,3 +71,45 @@ test("chat completions streams response with public key", async () => {
   expect(text).toContain("data: ")
   expect(text).toContain("[DONE]")
 }, 30000)
+
+test("key management requires auth", async () => {
+  const res = await fetch(`${BASE_URL}/v1/keys/generate`, { method: "POST" })
+  expect(res.status).toBe(401)
+})
+
+test("create key, list it, use it, and revoke it", async () => {
+  const authed = (path: string, opts: RequestInit = {}) =>
+    fetch(`${BASE_URL}${path}`, {
+      ...opts,
+      headers: {
+        ...(opts.headers as Record<string, string>),
+        Authorization: `Bearer ${PUBLIC_API_KEY}`,
+      },
+    })
+
+  // Create
+  const createRes = await authed("/v1/keys/generate", { method: "POST" })
+  expect(createRes.status).toBe(201)
+  const newKey = await createRes.json()
+  expect(newKey.key).toStartWith("sk_")
+
+  // List
+  const listRes = await authed("/v1/keys")
+  expect(listRes.status).toBe(200)
+  const keys = await listRes.json()
+  expect(keys.some((k: any) => k.id === newKey.id)).toBe(true)
+
+  // Revoke
+  const revokeRes = await authed("/v1/keys/revoke", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key: newKey.key }),
+  })
+  expect(revokeRes.status).toBe(200)
+
+  // Verify revoked
+  const listRes2 = await authed("/v1/keys")
+  const keys2 = await listRes2.json()
+  const revoked = keys2.find((k: any) => k.id === newKey.id)
+  expect(revoked.revokedAt).not.toBeNull()
+}, 15000)
