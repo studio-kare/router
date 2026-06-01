@@ -66,7 +66,7 @@ export class AuthService {
     const params = new URLSearchParams({
       client_id: this.clientId,
       redirect_uri: this.callbackUrl,
-      scope: "read:user admin:repo_hook repo",
+      scope: "read:user read:repo_hook write:repo_hook",
       state,
     })
     return {
