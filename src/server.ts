@@ -711,39 +711,16 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
         )
       }
       if (req.method === "GET" && url.pathname === "/v1/privacy/info") {
-        const privacyParam = url.searchParams.get("privacy")
-        let privacy = 0.8
-
-        if (privacyParam !== null) {
-          const parsed = parseFloat(privacyParam)
-          if (isNaN(parsed) || parsed < 0 || parsed > 1) {
-            return new Response(
-              JSON.stringify({ error: "privacy must be a number between 0 and 1" }),
-              { status: 400, headers: { "Content-Type": "application/json" } }
-            )
-          }
-          privacy = parsed
+        const mode = url.searchParams.get("mode") || "performance"
+        if (!["cost", "performance", "privacy"].includes(mode)) {
+          return new Response(
+            JSON.stringify({ error: 'mode must be one of: "cost", "performance", "privacy"' }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          )
         }
-
-        const strategy = privacyToStrategy(privacy)
+        const strategy = privacyToStrategy(mode as any)
         return new Response(
-          JSON.stringify({
-            privacy,
-            routing: {
-              anthropic: {
-                probability: strategy.probabilities.anthropic,
-                costMultiplier: strategy.costMultiplier,
-              },
-              openai: {
-                probability: strategy.probabilities.openai,
-                costMultiplier: strategy.costMultiplier,
-              },
-              openrouter: {
-                probability: strategy.probabilities.openrouter,
-                costMultiplier: strategy.costMultiplier,
-              },
-            },
-          }),
+          JSON.stringify({ mode, adapter: strategy.adapter, costMultiplier: strategy.costMultiplier }),
           { headers: { "Content-Type": "application/json" } }
         )
       }

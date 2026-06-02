@@ -151,16 +151,14 @@ test("GET /v1/deployment - returns deployment info", async () => {
   expect(data.features).toBeDefined()
 })
 
-test("GET /v1/privacy/info - returns privacy routing", async () => {
-  const res = await fetch(`${baseUrl}/v1/privacy/info?privacy=0.8`)
+test("GET /v1/privacy/info - returns routing mode info", async () => {
+  const res = await fetch(`${baseUrl}/v1/privacy/info?mode=performance`)
 
   expect(res.status).toBe(200)
   const data = await res.json()
-  expect(data.privacy).toBe(0.8)
-  expect(data.routing).toBeDefined()
-  expect(data.routing.anthropic).toBeDefined()
-  expect(data.routing.openai).toBeDefined()
-  expect(data.routing.openrouter).toBeDefined()
+  expect(data.mode).toBe("performance")
+  expect(data.adapter).toBe("openai")
+  expect(data.costMultiplier).toBeDefined()
 })
 
 test("GET /health - returns health status", async () => {

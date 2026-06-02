@@ -7,15 +7,6 @@ export interface DeploymentInfo {
   }
 }
 
-export interface PrivacyInfo {
-  privacy: number
-  routing: {
-    anthropic: { probability: number; costMultiplier: number }
-    openai: { probability: number; costMultiplier: number }
-    openrouter: { probability: number; costMultiplier: number }
-  }
-}
-
 export interface ApiKeyInfo {
   id: string
   key: string

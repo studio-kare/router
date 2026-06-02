@@ -4,7 +4,7 @@ import type { ChatCompletionMessageParam } from "openai/resources"
 export interface StreamChatParams {
   readonly model: string
   readonly messages: ChatCompletionMessageParam[]
-  readonly privacy?: number // [0, 1] — 0.8 is baseline
+  readonly privacy?: "cost" | "performance" | "privacy"
 }
 
 // Shared normalized output — each adapter converts to this

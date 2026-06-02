@@ -147,112 +147,51 @@ export function injectStyles() {
     text-transform: uppercase;
   }
 
-  .privacy-value {
-    font-size: 12px;
-    font-weight: 600;
-    color: #3b82f6;
+  .routing-modes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
-  .privacy-slider {
-    width: 100%;
-    height: 6px;
-    border-radius: 3px;
-    background: #e5e7eb;
-    outline: none;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-
-  .privacy-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #3b82f6;
+  .routing-mode-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.15s ease;
   }
 
-  .privacy-slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #3b82f6;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  .routing-mode-btn:hover {
+    border-color: #93c5fd;
+    background: #f0f7ff;
   }
 
-  .privacy-percentage {
+  .routing-mode-btn.active {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+
+  .routing-mode-label {
     font-size: 13px;
     font-weight: 600;
     color: #111827;
-    text-align: center;
-    padding: 4px 0;
   }
 
-  .privacy-loading {
+  .routing-mode-desc {
     font-size: 11px;
-    color: #9ca3af;
-    text-align: center;
-    padding: 4px;
-  }
-
-  .routing-info {
-    background: #f9fafb;
-    border-radius: 6px;
-    padding: 8px;
-    margin-top: 4px;
-  }
-
-  .routing-header {
-    font-size: 11px;
-    font-weight: 600;
     color: #6b7280;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    padding: 0 4px;
   }
 
-  .adapter-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-    font-size: 12px;
+  .routing-mode-btn.active .routing-mode-label {
+    color: #1d4ed8;
   }
 
-  .adapter-row:last-child {
-    margin-bottom: 0;
-  }
-
-  .adapter-name {
-    width: 70px;
-    color: #6b7280;
-    font-size: 11px;
-  }
-
-  .probability-bar {
-    flex: 1;
-    height: 4px;
-    background: #e5e7eb;
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .probability-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #2563eb);
-    border-radius: 2px;
-  }
-
-  .probability-text {
-    width: 35px;
-    text-align: right;
-    color: #111827;
-    font-weight: 600;
-    font-size: 11px;
+  .routing-mode-btn.active .routing-mode-desc {
+    color: #3b82f6;
   }
 
   .keys-section {
@@ -590,76 +529,6 @@ export function injectStyles() {
     margin-top: 0;
   }
 
-  .privacy-selector {
-    margin-bottom: 20px;
-    padding: 12px;
-    background: #f9fafb;
-    border-radius: 6px;
-  }
-
-  .selector-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .selector-header label {
-    font-size: 13px;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  .adapter-badge {
-    padding: 4px 8px;
-    background: #3b82f6;
-    color: white;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: capitalize;
-  }
-
-  .privacy-slider-input {
-    width: 100%;
-    height: 6px;
-    border-radius: 3px;
-    background: #e5e7eb;
-    outline: none;
-    -webkit-appearance: none;
-    appearance: none;
-    margin-bottom: 8px;
-  }
-
-  .privacy-slider-input::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #3b82f6;
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .privacy-slider-input::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #3b82f6;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .privacy-legend {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #6b7280;
-    padding-top: 4px;
-    border-top: 1px solid #e5e7eb;
-  }
 
   .curl-container {
     background: #1f2937;
