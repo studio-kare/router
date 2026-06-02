@@ -22,7 +22,7 @@ export class KeyService extends Context.Service<
 >()("KeyService") {}
 
 export const KeyServiceLive = (() => {
-  const db = new Database("./farmer.db")
+  const db = new Database("./data/farmer.db")
 
   // Initialize table
   db.exec(`

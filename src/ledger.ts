@@ -28,7 +28,7 @@ export class LedgerService extends Context.Service<
 >()("LedgerService") {}
 
 export const LedgerServiceLive = (() => {
-  const db = new Database("./farmer.db")
+  const db = new Database("./data/farmer.db")
 
   // Initialize table
   db.exec(`

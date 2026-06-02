@@ -379,8 +379,8 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
   const runtime = ManagedRuntime.make(adapters)
 
   // Initialize public deployment services
-  const publicMetrics = createPublicMetrics("./farmer.db")
-  const banManager = createBanManager("./farmer.db")
+  const publicMetrics = createPublicMetrics("./data/farmer.db")
+  const banManager = createBanManager("./data/farmer.db")
 
   // Initialize auth service
   const githubClientId = process.env.GITHUB_CLIENT_ID || ""
@@ -389,9 +389,9 @@ export const startServer = (adapters: Layer.Layer<AdapterEnv>, port = 3000) => {
   const isSecure = process.env.DEPLOYMENT !== "development"
   const baseUrl = process.env.BASE_URL || (isSecure ? "https://router.studiokare.nl" : `http://localhost:${port}`)
   const publicApiKey = process.env.PUBLIC_API_KEY || ""
-  const webhookService = new WebhookService("./farmer.db")
+  const webhookService = new WebhookService("./data/farmer.db")
   const authService = new AuthService({
-    dbPath: "./farmer.db",
+    dbPath: "./data/farmer.db",
     clientId: githubClientId,
     clientSecret: githubClientSecret,
     allowedUsers,
